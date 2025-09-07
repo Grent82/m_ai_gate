@@ -10,7 +10,6 @@ from models.local_model import LocalModel
 
 def run_agent():
 
-    # model = LocalModel("/path/to/model.gguf")
     model = LocalModel()
     perception = Perception(model)
     
