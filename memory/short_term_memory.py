@@ -13,7 +13,7 @@ class ShortTermMemory:
         self.is_new_day = True
 
         # Short-term memory variables
-        self.current_time: Optional[datetime] = None  # Tracks the agent's current time for scheduling
+        self.current_time: Optional[datetime] = None
         self.current_tile: Optional[Tuple[int, int]] = None
 
         self.action = AgentAction()
