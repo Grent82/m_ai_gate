@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 from jinja2 import Environment, FileSystemLoader
 from core.agent_action import Event
 from models.local_model import LocalModel
@@ -11,7 +13,7 @@ class EventTripleGenerator:
         self.model = model
         self.env = Environment(loader=FileSystemLoader(prompt_dir))
 
-    def generate_event(self, agent: Agent, action_description: str) -> str:
+    def generate_event(self, agent: Agent, action_description: str) -> List[Tuple[str, str, str]]:
         template = self.env.get_template("generate_event_triple.txt")
         context = {
             "agent": agent.get_state(),
@@ -19,8 +21,8 @@ class EventTripleGenerator:
         }
 
         prompt = template.render(context)
-       #logger.debug(f"[EventTriple] Prompt:\n{prompt}")
-        
+        # logger.debug(f"[EventTriple] Prompt:\n{prompt}")
+
         response = self.model.generate(prompt, max_tokens=200, stop=["###", "</event>"])
         logger.debug(f"[EventTriple] Response: {response}")
 
@@ -35,4 +37,3 @@ class EventTripleGenerator:
                 else:
                     logger.warning(f"[EventTriple] Malformed triple: {line}")
         return triples
-    
