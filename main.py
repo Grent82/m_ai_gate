@@ -10,6 +10,9 @@ from models.local_model import LocalModel
 
 def run_agent():
 
+    # The model path can be passed explicitly or set via the MODEL_PATH
+    # environment variable before running this script.
+    # model = LocalModel("/path/to/model.gguf")
     model = LocalModel()
     perception = Perception(model)
     
