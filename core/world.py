@@ -22,8 +22,11 @@ class World:
         self.agents.append(agent)
 
     def get_nearest_npc(self, agent):
+        others = [other for other in self.agents if other != agent]
+        if not others:
+            return None
         return min(
-            (other for other in self.agents if other != agent),
+            others,
             key=lambda other: self.calculate_distance(agent.position, other.position),
         )
 

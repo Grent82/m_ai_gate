@@ -6,19 +6,29 @@ from agents.inner_thought_generator import InnerThoughtGenerator
 from core.setup.agent_builder import AgentBuilder
 from core.setup.world_builder import WorldBuilder
 from models.local_model import LocalModel
+from core.logger import setup_logger
 
 
 def run_agent():
 
+    logger = setup_logger(__name__)
+
     model = LocalModel()
     perception = Perception(model)
-    
+
     planner = ModularPlanner(model)
-    
+
     world = WorldBuilder().setup_medieval_village_world()
     agents = AgentBuilder(InnerThoughtGenerator(model), EventTripleGenerator(model)).build_medieval_agents()
     for agent in agents:
         world.add_agent(agent)
+
+        nearest = world.get_nearest_npc(agent)
+        if nearest is None:
+            logger.debug(f"No nearby agents for {agent.name} to interact with.")
+        else:
+            logger.debug(f"Nearest agent to {agent.name} is {nearest.name}.")
+
         retrieval = Retrieval(agent.long_term_memory, agent.short_term_memory)
         perceived = perception.perceive(agent, world)
         retrieved = retrieval.retrieve_context(perceived)
