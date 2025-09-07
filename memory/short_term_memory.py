@@ -27,9 +27,6 @@ class ShortTermMemory:
         self.importance_weight = 1
         self.relevance_weight = 1
 
-
-        self.current_time = None
-
     def add_action(self, action: AgentAction):
         self.action = action
 
