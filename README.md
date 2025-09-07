@@ -61,15 +61,6 @@ A small AI test game built with Python and Pygame, leveraging machine learning m
    .venv\Scripts\activate.bat
    ```
 
-   If you receive an error such as:
-
-   ```
-   The term './.venv/bin/activate' is not recognized...
-   ```
-
-   make sure you are using the Windows path above (with `Scripts`) rather than
-   the macOS/Linux path (`bin`).
-
 3. Install dependencies:
 
    ```bash
