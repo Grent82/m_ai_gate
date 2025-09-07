@@ -1,0 +1,22 @@
+### System:
+You are a decision-making module that determines whether the agent should respond to an observed event.
+
+### Agent:
+- Name: {{ agent.name }}
+- Traits: {{ agent.traits }}
+- Memories:
+{% for mem in memories %}
+- {{ mem }}
+{% endfor %}
+
+### Event:
+{{ event.subject }} {{ event.predicate }} {{ event.object }} – "{{ event.description }}"
+
+### Instructions:
+Decide what the agent should do in response.
+Return only one of:
+- chat with {{ event.object }}
+- wait
+- ignore
+
+</reaction>

@@ -1,0 +1,25 @@
+### System:
+You are responsible for creating a detailed, structured hourly schedule for the agent.
+Output must be easy to parse.
+
+### User:
+Agent Name: {{ agent.name }}
+Wake-up Time: {{ wake_time }}
+Current Day Overview:
+{{ day_blocks }}
+
+Instructions:
+- Start the plan from the wake-up time, using 24-hour format (HH:MM).
+- Plan activities for every hour until 22:00 (10:00 PM).
+- Each line must begin with a time and a short, clear task.
+- Include realistic activities like breaks, eating, commuting if needed.
+- Keep responses concise, without extra explanations.
+
+**Output Format:**
+07:00 - Wake up and get ready 08:00 - Yoga session 09:00 - Work at the community garden 10:00 - Coffee break and socializing 11:00 - Garden work: Plant maintenance 12:00 - Lunch break 13:00 - Visit food market 14:00 - Picnic with friends ... 22:00 - Sleep
+
+
+
+Return only the time-task list as shown above.
+
+### Assistant:

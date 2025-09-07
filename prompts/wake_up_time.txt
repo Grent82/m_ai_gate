@@ -1,0 +1,23 @@
+### System:
+You are a planning module responsible for determining an agent’s wake-up time.
+
+### User:
+Agent Information:
+- Name: {{ agent.name }}
+- Traits: {{ agent.traits }}
+- Location: {{ agent.location }}
+
+Memories:
+{% for memory in agent.memories %}
+- {{ memory }}
+{% endfor %}
+
+### Instructions:
+Return ONLY the wake-up time in **24-hour format (HH:MM)**.
+Do NOT include any explanation, sentence, or greeting.
+
+Return it like:
+>> 07:00
+
+### Assistant:
+>>

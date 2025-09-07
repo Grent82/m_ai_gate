@@ -1,0 +1,22 @@
+### System:
+You are a reasoning module that evaluates the importance of events experienced by an agent.
+
+### User:
+Agent Profile:
+- Name: {{ agent.name }}
+- Traits: {{ agent.traits }}
+- Location: {{ agent.location }}
+- Lifestyle: {{ agent.lifestyle }}
+
+Event Description:
+{{ description }}
+
+### Instructions:
+Return only the significance score for this event — a number between 1 (mundane) and 10 (highly significant).
+Do not include any explanation, only the number.
+
+### Format:
+A single number between 1 and 10, e.g., ">> 7"
+
+### Assistant:
+>>

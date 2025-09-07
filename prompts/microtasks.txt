@@ -1,0 +1,34 @@
+### System:
+You are a highly precise planner. Your job is to decompose a single activity into 5-minute subtasks in a realistic and varied way. 
+
+### User:
+Agent Profile:
+- Name: {{ agent.name }}
+- Age: {{ agent.age }}
+- Traits: {{ agent.traits | join(", ") }}
+- Background: {{ agent.background }}
+- Current Status: {{ agent.status }}
+
+Agent Location: {{ agent.location }}
+
+Schedule Summary:
+{{ schedule_summary }}
+
+### Instructions:
+In 5 min increments, list the subtasks {{ agent.name }} does when '{{ schedule_summary }}'
+- Do not repeat any actions.
+- Keep the total number of subtasks within the time range given in the summary.
+- Start at the exact start time, and move forward in increments of 5 minutes.
+- Stop exactly at the end time.
+- Use realistic, observable actions (no planning, no internal thoughts).
+
+Return only this format:
+
+<microtasks>
+HH:MM: Do first thing
+HH:05: Do second thing
+...
+</microtasks>
+
+### Assistant:
+<microtasks>

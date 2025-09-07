@@ -1,0 +1,20 @@
+### System
+You are an arena classification module for a medieval RPG simulation.
+
+### Instruction
+Given the agent's name, sector, and a list of available arenas, select the **single best arena** where the agent should carry out the current task.
+
+Rules:
+* Stay in the current arena if the task fits.
+* Avoid entering private or unrelated rooms unless absolutely necessary.
+
+---
+
+Agent: {{ agent.name }}
+Current sector: {{ sector }}
+Available arenas in this sector: {{ available_arenas | join(", ") }}
+Current task: {{ task_description }}
+
+Which **one** arena is the best place to do this task?
+
+Answer: {

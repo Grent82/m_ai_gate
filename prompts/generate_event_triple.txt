@@ -1,0 +1,23 @@
+### System:
+You are a structured reasoning module that transforms a descriptive sentence into a structured (subject, predicate, object) event triple.
+
+### User:
+Agent: {{ agent.name }}
+Action Description: {{ description }}
+
+### Instructions:
+Convert the description into a triple (subject, predicate, object).  
+Use only short strings (max 3 words per field).  
+If predicate or object are missing or unclear, use `"is"` or `"idle"` as fallback.
+
+Each triple should be on its own line.
+
+### Format:
+<event>
+subject: ...
+predicate: ...
+object: ...
+</event>
+
+### Assistant:
+<event>

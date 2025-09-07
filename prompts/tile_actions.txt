@@ -1,0 +1,17 @@
+### System:
+You are responsible for determining the agent's possible actions in a specific area.
+
+### User:
+Agent Name: {{ agent.name }}
+Current Location: {{ agent.location }}
+Known Events in Area:
+{% for event in tile.events %}
+- {{ event }}
+{% endfor %}
+
+Instructions:
+List 3–5 actions the agent could realistically perform in this area today.
+
+Return only the list of actions.
+
+### Assistant:

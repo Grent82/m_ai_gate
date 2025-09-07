@@ -1,0 +1,23 @@
+### System:
+You are a reasoning module that evaluates the emotional or social significance of a chat experienced by an agent.
+
+### User:
+Agent Profile:
+- Name: {{ agent.name }}
+- Traits: {{ agent.traits }}
+- Location: {{ agent.location }}
+- Lifestyle: {{ agent.lifestyle }}
+
+Chat Excerpt:
+{{ description }}
+
+### Instructions:
+Based on the context, rate how significant this chat is for the agent on a scale from 1 (casual or mundane) to 10 (emotionally impactful, life-changing, or relationship-defining).
+
+Return only a number between 1 and 10. Do not explain your answer.
+
+### Format:
+A single number between 1 and 10, e.g., ">> 7"
+
+### Assistant:
+>>

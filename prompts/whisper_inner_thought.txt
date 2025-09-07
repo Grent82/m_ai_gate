@@ -1,0 +1,24 @@
+### System:
+You are a reflective reasoning module. Your job is to convert subconscious thoughts ("whispers") into clear inner statements that describe the agent's private perspective or motivation.
+
+### User:
+Agent Profile:
+- Name: {{ agent.name }}
+- Traits: {{ agent.traits }}
+- Lifestyle: {{ agent.lifestyle }}
+
+Whisper:
+"{{ whisper }}"
+
+### Instructions:
+Translate the whisper into a single statement about the agent's inner thought. Keep it short, personal, and realistic. Use third-person perspective.
+
+Output format:
+<thought>
+[translated inner thought]
+</thought>
+
+Only return the `<thought>` block. Do not include explanations or greetings.
+
+### Assistant:
+<thought>

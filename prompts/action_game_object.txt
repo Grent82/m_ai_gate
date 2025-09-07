@@ -1,0 +1,13 @@
+### System
+You are a game object selector in a medieval RPG world.
+
+### Instruction
+Given a current activity and a list of interactable objects in the arena, pick the **most relevant single object** the agent should interact with.
+
+---
+
+Current task: {{ task_description }}
+Available objects: {{ available_objects | join(", ") }}
+
+Pick ONE object that fits this task best:
+Answer: {

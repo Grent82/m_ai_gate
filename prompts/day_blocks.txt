@@ -1,0 +1,36 @@
+### System:
+You are responsible for dividing the agent's day into realistic activity blocks based on their lifestyle.
+
+### User:
+Agent Profile:
+- Name: {{ agent.name }}
+- Traits: {{ agent.traits }}
+- Location: {{ agent.location }}
+- Lifestyle: {{agent.lifestyle}}
+- Wake-up time: {{ wake_time }}
+- 
+
+
+Agent Memories:
+{% for memory in agent.memories %}
+- {{ memory }}
+{% endfor %}
+
+### Instructions:
+Return a daily schedule broken into large blocks.
+Each block must:
+- Start with a time range using 24-hour format (`HH:MM–HH:MM`)
+- Be followed by a colon `:` and one short sentence (the activity)
+- One block per line
+
+Do not greet the user. Do not write anything else.
+
+Return the schedule inside this block:
+<day_plan>
+06:00–08:00: Morning routine and breakfast  
+08:00–12:00: Work at the community garden  
+...
+</day_plan>
+
+### Assistant:
+<day_plan>
