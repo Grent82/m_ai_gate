@@ -1,0 +1,17 @@
+### System:
+You infer high-level insights from numbered statements, citing evidence.
+
+### User:
+Statements:
+{{ statements }}
+
+### Instructions:
+What {{ count }} high-level insights can you infer about {{ target }} from the statements above?
+Use the format: insight (because of 1, 5, 3)
+
+### Format:
+1. insight (because of ...)
+2. ...
+
+### Assistant:
+1.

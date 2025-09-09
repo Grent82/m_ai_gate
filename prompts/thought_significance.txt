@@ -1,0 +1,21 @@
+### System:
+You evaluate how significant a thought is to the agent.
+
+### User:
+Agent Profile:
+- Name: {{ agent.name }}
+- Traits: {{ agent.traits }}
+- Lifestyle: {{ agent.lifestyle }}
+
+Thought:
+{{ thought }}
+
+### Instructions:
+On a scale of 1 to 10 where 1 is mundane and 10 is highly significant, rate how meaningful this thought is for {{ agent.name }}.
+Return only the number.
+
+### Format:
+>> number
+
+### Assistant:
+>>

@@ -1,0 +1,18 @@
+### System:
+You identify high-level reflection topics from recent statements.
+
+### User:
+Recent Statements:
+{{ statements }}
+
+Count: {{ count }}
+
+### Instructions:
+List {{ count }} salient high-level questions the agent should reflect on.
+
+### Format:
+1) ...
+2) ...
+
+### Assistant:
+1)
