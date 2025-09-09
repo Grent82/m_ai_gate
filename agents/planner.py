@@ -191,19 +191,85 @@ class ModularPlanner(IPlanner):
         return schedule
 
     def parse_day_blocks(self, block_text: str) -> List[Dict[str, str]]:
-        blocks = []
-        lines = block_text.strip().split("\n")
-        time_block_pattern = re.compile(r"(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})\s*:\s*(.+)")
+        blocks: List[Dict[str, str]] = []
+        if not block_text:
+            logger.warning("[Planner] Empty day block text provided.")
+            return blocks
 
-        for line in lines:
-            match = time_block_pattern.match(line.strip())
-            if match:
-                start, end, description = match.groups()
-                blocks.append({
-                    "start": start.strip().zfill(5),
-                    "end": end.strip().zfill(5),
-                    "description": description.strip()
-                })
+        lines = block_text.strip().split("\n")
+
+        # Pattern that tolerates different dashes and odd minute suffixes (e.g., '21:0ayer')
+        # Example expected line: "05:30–06:30: Do something"
+        line_pattern = re.compile(r"^\s*([0-2]?\d\s*:\s*\S+)\s*[–—-]\s*([0-2]?\d\s*:\s*\S+)\s*:\s*(.+)$")
+
+        def sanitize_time_token(token: str) -> Optional[str]:
+            token = token.strip()
+            # Capture hours and up to two minute digits, ignoring trailing junk like 'ayer'
+            m = re.match(r"^(\d{1,2})\s*:\s*([0-5]?\d)", token)
+            if not m:
+                return None
+            hh_str, mm_str = m.groups()
+            try:
+                hh = int(hh_str)
+            except ValueError:
+                return None
+            if not (0 <= hh <= 23):
+                return None
+            # If minutes is a single digit (e.g., '5' or '0'), interpret as '05' / '00'
+            if len(mm_str) == 1:
+                mm_str = mm_str.zfill(2)
+            try:
+                mm = int(mm_str)
+            except ValueError:
+                return None
+            if not (0 <= mm <= 59):
+                return None
+            return f"{hh:02d}:{mm:02d}"
+
+        for raw_line in lines:
+            line = raw_line.strip()
+            if not line:
+                continue
+            # Normalize list bullets and dashes
+            line = re.sub(r"^[•\-*\u2022]+\s*", "", line)
+            line = line.replace("—", "-").replace("–", "-").replace("−", "-")
+
+            m = line_pattern.match(line)
+            if not m:
+                logger.warning(f"[Planner] Malformed day block line (format): '{raw_line}'")
+                continue
+
+            start_tok, end_tok, description = m.groups()
+            start = sanitize_time_token(start_tok)
+            end = sanitize_time_token(end_tok)
+
+            if not start or not end:
+                logger.warning(
+                    f"[Planner] Malformed time in day block line; skipping: '{raw_line}' (start='{start_tok}', end='{end_tok}')"
+                )
+                continue
+
+            try:
+                start_dt = datetime.strptime(start, "%H:%M")
+                end_dt = datetime.strptime(end, "%H:%M")
+            except ValueError:
+                logger.warning(f"[Planner] Unparseable times in line; skipping: '{raw_line}' -> start='{start}', end='{end}'")
+                continue
+
+            if end_dt <= start_dt:
+                logger.warning(
+                    f"[Planner] End time <= start time; skipping block: '{raw_line}' -> start='{start}', end='{end}'"
+                )
+                continue
+
+            blocks.append({
+                "start": start,
+                "end": end,
+                "description": description.strip()
+            })
+
+        if not blocks:
+            logger.warning("[Planner] No valid day blocks parsed from model output.")
 
         logger.debug(f"Parsed Day Blocks: {blocks}")
         return blocks
@@ -211,31 +277,36 @@ class ModularPlanner(IPlanner):
     def get_schedule_summary(self, agent: Agent, current_time: str) -> str:
         try:
             now = datetime.strptime(current_time, "%H:%M")
-            task = None
-            start_time = None
-            end_time = None
 
             hourly_schedule = agent.short_term_memory.daily_schedule_hourly
 
+            # Find the schedule entry that contains 'now'
+            idx = None
             for i, entry in enumerate(hourly_schedule):
                 entry_time = datetime.strptime(entry["time"], "%H:%M")
-
-                if entry_time <= now:
-                    task = entry["task"]
-                    start_time = entry["time"]
-                    for j in range(i + 1, len(hourly_schedule)):
-                        if hourly_schedule[j]["task"] != task:
-                            end_time = hourly_schedule[j]["time"]
-                            break
-                    if not end_time:
-                        end_time = "end of day"
-                else:
+                next_time = entry_time + timedelta(hours=1)
+                if entry_time <= now < next_time:
+                    idx = i
                     break
 
-            if task:
-                return f"From {start_time} to {end_time}, {agent.name} is planning on {task}."
-            else:
+            if idx is None:
                 return f"No known activity for {agent.name} before {current_time}."
+
+            task = hourly_schedule[idx]["task"]
+
+            # Walk backward to find the start of this contiguous task block
+            start_idx = idx
+            while start_idx - 1 >= 0 and hourly_schedule[start_idx - 1]["task"] == task:
+                start_idx -= 1
+            start_time = hourly_schedule[start_idx]["time"]
+
+            # Walk forward to find when this task changes next
+            end_idx = idx + 1
+            while end_idx < len(hourly_schedule) and hourly_schedule[end_idx]["task"] == task:
+                end_idx += 1
+            end_time = hourly_schedule[end_idx]["time"] if end_idx < len(hourly_schedule) else "end of day"
+
+            return f"From {start_time} to {end_time}, {agent.name} is planning on {task}."
 
         except Exception as e:
             logger.error(f"Error generating schedule summary: {e}")
