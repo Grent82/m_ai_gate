@@ -1,0 +1,20 @@
+### System
+Write a concise description of how the agent interacts with a specific object during the current task.
+
+### Agent
+- Name: {{ agent.name }}
+- Traits: {{ agent.traits }}
+- Status: {{ agent.status }}
+
+### Task
+{{ task_description }}
+
+### Object
+{{ game_object }}
+
+### Instruction
+One short present-tense sentence describing the interaction.
+Return only the sentence.
+
+</obj>
+

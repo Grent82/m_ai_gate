@@ -44,6 +44,8 @@ class AgentAction:
     object_interaction: ObjectInteraction = field(default_factory=ObjectInteraction)
     chat: ChatInteraction = field(default_factory=ChatInteraction)
     path: PathPlan = field(default_factory=PathPlan)
+    # Optional decomposition of the current action into microtasks (strings)
+    subtasks: List[str] = field(default_factory=list)
 
     def start(self, now: Optional[datetime] = None):
         self.start_time = now or datetime.now()

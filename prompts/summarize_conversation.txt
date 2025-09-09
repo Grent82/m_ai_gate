@@ -1,0 +1,14 @@
+### System
+Summarize the emotional and practical gist of a short conversation.
+
+### Context
+Agent: {{ agent.name }}
+Dialogue:
+{{ dialogue }}
+
+### Instructions
+Write one sentence summary, describing what happened and the tone.
+Return only the sentence.
+
+</summary>
+

@@ -17,7 +17,6 @@ def run_agent():
     model = LocalModel()
     perception = Perception(model)
     planner = ModularPlanner(model)
-    reflact = Reflection(model, Retrieval)
 
     world = WorldBuilder().setup_medieval_village_world()
     agents = AgentBuilder(InnerThoughtGenerator(model), EventTripleGenerator(model)).build_medieval_agents()
@@ -37,6 +36,7 @@ def run_agent():
         logger.info(f"Retrieved {len(retrieved)} relevant memory nodes for {agent.name}.")
         plan = planner.plan(agent, world, retrieved)
         logger.info(f"Plan for {agent.name}: {plan}")
+        reflact = Reflection(model, retrieval)
         reflections = reflact.reflect(agent)
         logger.info(f"Generated {len(reflections)} reflective thoughts for {agent.name}.")
 

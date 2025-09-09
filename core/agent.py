@@ -15,10 +15,15 @@ class Agent:
         self.position = position
         self.lifestyle = lifestyle
 
-        
-        self.vision_range = 5 # todo
+        # Profile/identity state (editable by identity revision)
+        self.background = (
+            "Grew up in a small village and moved to Town Square to explore urban life"
+        )
+        self.status = "energetic, slightly hungry"
+
+        self.vision_range = 5  # todo
         self.attention_bandwidth: int = 3  # Max number of events agent can attend to
-        self.retention = 5 # todo
+        self.retention = 5  # todo
 
         self.importance_triggers: Set[str] = set()
 
@@ -29,9 +34,10 @@ class Agent:
         self.long_term_memory = LongTermMemory()
         self.spatial_memory = SpatialMemory()
 
-
     def add_long_term_memory(self, msg: str, relevance: float):
-        self.long_term_memory.add_event(Event(subject="", description=msg), relevance=relevance)
+        self.long_term_memory.add_event(
+            Event(subject="", description=msg), relevance=relevance
+        )
 
     def get_recent_event_tuples(self, limit: int = 10) -> Set[Tuple[str, str, str]]:
         return {
@@ -40,11 +46,23 @@ class Agent:
         }
 
     def get_state(self):
+        # Collect a small set of recent memory descriptions for prompts
+        recent_memories = []
+        for t in ("thought", "event", "chat"):
+            for node in self.long_term_memory.node_sequences[t][:6]:
+                if node.event and node.event.description:
+                    recent_memories.append(node.event.description)
+
+        # Provide a lightweight location string as coordinates for prompts
+        location = f"({self.position[0]}, {self.position[1]})"
+
         return {
             "name": self.name,
             "age": self.age,
             "traits": self.traits,
-            # "memories": self.long_term_memory.get_relevant_memories()
-            "background": "Alex grew up in a small village and moved to Town Square to explore urban life",
-            "status": "energetic, slightly hungry"
+            "lifestyle": self.lifestyle,
+            "location": location,
+            "memories": recent_memories,
+            "background": self.background,
+            "status": self.status,
         }

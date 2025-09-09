@@ -10,13 +10,19 @@ from core.logger import setup_logger
 from interfaces.i_planner import IPlanner
 from datetime import datetime, timedelta
 import re
+from .event_triple_generator import EventTripleGenerator
+from .chat_manager import ChatManager
+from .identity import IdentityReviser
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, log_level="DEBUG")
 
 class ModularPlanner(IPlanner):
     def __init__(self, model: LocalModel, template_path: str = "prompts"):
         self.model = model
         self.env = Environment(loader=FileSystemLoader(template_path))
+        self.event_triples = EventTripleGenerator(model, template_path)
+        self.chat_manager = ChatManager(model, template_path)
+        self.identity = IdentityReviser(model, template_path)
 
     def plan(self, agent: Agent, world: World, retrieved: Dict[str, Dict[str, List[MemoryNode]]]) -> str:
         logger.info("[Planner] Running full daily plan...")
@@ -42,7 +48,10 @@ class ModularPlanner(IPlanner):
         if focused_event:
             reaction = self._decide_reaction(agent, focused_event)
             if reaction:
-                self._apply_reaction(agent, focused_event, reaction)
+                if reaction.strip().lower().startswith("ignore"):
+                    logger.debug("[Planner] Reaction was 'ignore'; keeping current plan.")
+                else:
+                    self._apply_reaction(agent, focused_event, reaction)
         
         if current_action.event.predicate != "chat with":
             agent.short_term_memory.action.chat.with_whom = None
@@ -63,8 +72,11 @@ class ModularPlanner(IPlanner):
         if agent.short_term_memory.is_first_day:
             self.get_day_blocks(agent, world, wake_time)
         else:
-            # todo: revise
-            pass
+            # revise identity/status for the day
+            try:
+                self.identity.revise(agent)
+            except Exception as e:
+                logger.warning(f"[Planner] Identity revision failed: {e}")
 
         self.get_hourly_schedule(agent)
         world_state = world.get_state()
@@ -75,7 +87,7 @@ class ModularPlanner(IPlanner):
         
         thought = f"This is {agent.name}'s plan for {world.date}:"
         for i in agent.short_term_memory.daily_schedule_hourly:
-            thought += f" {i},"
+            thought += f" {i['time']} - {i['task']},"
         thought = thought[:-1] + "."
         embedding = get_embedding(thought)
         relevance = 5
@@ -83,6 +95,10 @@ class ModularPlanner(IPlanner):
         logger.debug(f"Add thought '{thought}' to memory")
         event = Event(agent.name, "plan", agent.short_term_memory.current_time.strftime('%A %B %d'), thought)
         agent.long_term_memory.add_thought(event, relevance, set(["plan"]), None, embedding)
+
+        # Flip flags after planning is complete
+        agent.short_term_memory.is_first_day = False
+        agent.short_term_memory.is_new_day = False
 
 
     def _render_prompt(self, template_name: str, context: dict) -> str:
@@ -110,7 +126,7 @@ class ModularPlanner(IPlanner):
 
     def get_hourly_schedule(self, agent: Agent) -> None:
         logger.info("[Planner] Generating hourly plan from day blocks...")
-        schedule = {}
+        schedule: Dict[str, str] = {}
 
         for block in agent.short_term_memory.daily_schedule:
             try:
@@ -118,17 +134,11 @@ class ModularPlanner(IPlanner):
                 end_time = datetime.strptime(block["end"], "%H:%M")
                 description = block["description"]
 
-                current_time = start_time
-                while current_time < end_time:
-                    hour_str = current_time.strftime("%H:%M")
-                    schedule[hour_str] = description
-                    current_time += timedelta(hours=1)
-
-                # Handle partial hour case, e.g., 20:30–21:30 should include 21:00
-                final_hour = end_time.replace(minute=0)
-                if final_hour != end_time and final_hour.strftime("%H:%M") not in schedule:
-                    schedule[final_hour.strftime("%H:%M")] = description
-
+                for hour in range(24):
+                    bin_start = datetime.strptime(f"{hour:02}:00", "%H:%M")
+                    bin_end = bin_start + timedelta(hours=1)
+                    if bin_end > start_time and bin_start < end_time:
+                        schedule[bin_start.strftime("%H:%M")] = description
             except ValueError as e:
                 logger.error(f"Error parsing time block: {block} - {e}")
 
@@ -301,12 +311,42 @@ class ModularPlanner(IPlanner):
 
         duration = min(60, max(5, remaining_minutes))  # cap and floor to reasonable bounds
 
-        event = Event(agent.name, "is", current_task_desc, current_task_desc)
+        # Create a semantic event triple if available
+        try:
+            triples = self.event_triples.generate_event(agent, current_task_desc)
+            if triples:
+                s, p, o = triples[0]
+                event = Event(s, p, o, current_task_desc)
+            else:
+                event = Event(agent.name, "is", current_task_desc, current_task_desc)
+        except Exception as e:
+            logger.warning(f"[Planner] Event triple generation failed: {e}")
+            event = Event(agent.name, "is", current_task_desc, current_task_desc)
+
         agent.short_term_memory.action.description = current_task_desc
         agent.short_term_memory.action.event = event
         agent.short_term_memory.action.address = address
         agent.short_term_memory.action.duration = duration
         agent.short_term_memory.action.start(now)
+
+        # Optional object-level interaction description and triple
+        try:
+            obj_desc = self._generate_object_interaction(agent, game_object, current_task_desc)
+            agent.short_term_memory.action.object_interaction.description = obj_desc
+            obj_triples = self.event_triples.generate_event(agent, obj_desc)
+            if obj_triples:
+                s, p, o = obj_triples[0]
+                agent.short_term_memory.action.object_interaction.event = Event(s, p, o, obj_desc)
+        except Exception as e:
+            logger.debug(f"[Planner] Object interaction generation skipped: {e}")
+
+        # Optional microtasks for the current action
+        try:
+            summary = f"From {time_key} for {duration} minutes, {agent.name} is {current_task_desc}."
+            micro = self.generate_microtasks(agent, world, summary)
+            agent.short_term_memory.action.subtasks = self._parse_microtasks_text(micro)
+        except Exception as e:
+            logger.debug(f"[Planner] Microtasks not generated: {e}")
 
         logger.debug(
             "[Planner] Chosen: sector='%s', arena='%s', object='%s' -> address='%s'",
@@ -326,7 +366,7 @@ class ModularPlanner(IPlanner):
         """
         if not options:
             logger.debug("[Planner] No options provided. Using default='%s' for raw='%s'", default, raw)
-            return default
+            return default or "here"
 
         options_sorted = sorted(options, key=len, reverse=True)
         raw_norm = raw.strip().strip('{}[]()"').strip()
@@ -344,7 +384,7 @@ class ModularPlanner(IPlanner):
                 return opt
 
         # Nothing matched: return default or the first available
-        chosen = default or options_sorted[-1]
+        chosen = default or (options_sorted[-1] if options_sorted else "here")
         logger.debug(
             "[Planner] No match found for raw='%s'. Falling back to '%s' (default). Options=%s",
             raw,
@@ -411,6 +451,16 @@ class ModularPlanner(IPlanner):
         event = context_bundle["current_event"]
         memories = [n.event.description for n in context_bundle.get("context_nodes", [])]
 
+        # Guardrails to avoid late-night or sleep-interrupting reactions
+        now = agent.short_term_memory.current_time
+        current_desc = (agent.short_term_memory.action.description or "").lower()
+        if now and now.hour >= 23:
+            return None
+        if "sleep" in current_desc or "in bed" in current_desc:
+            return None
+        if agent.short_term_memory.action.chat.with_whom:
+            return None
+
         context = {
             "agent": agent.get_state(),
             "event": {
@@ -435,14 +485,19 @@ class ModularPlanner(IPlanner):
 
         if reaction_mode.startswith("chat with"):
             target = event.object or "someone"
+            convo = self.chat_manager.generate_conversation(agent, target)
+            summary = self.chat_manager.summarize_conversation(agent, convo)
+            turns = max(1, len(convo))
+            minutes = max(5, min(20, (turns + 1) // 2))
+
             agent.short_term_memory.action.chat.with_whom = target
-            agent.short_term_memory.action.chat.chat_log.append([agent.name, f"Hello, {target}!"])
-            agent.short_term_memory.action.chat.end_time = now + timedelta(minutes=10)
-            agent.short_term_memory.action.chat.buffer[target] = 5
+            agent.short_term_memory.action.chat.chat_log = [[s, u] for s, u in convo]
+            agent.short_term_memory.action.chat.end_time = now + timedelta(minutes=minutes)
+            agent.short_term_memory.action.chat.buffer[target] = max(5, minutes // 2)
 
             agent.short_term_memory.action.description = f"chatting with {target}"
-            agent.short_term_memory.action.event = Event(agent.name, "chat with", target, f"{agent.name} chats with {target}")
-            agent.short_term_memory.action.duration = 10
+            agent.short_term_memory.action.event = Event(agent.name, "chat with", target, summary)
+            agent.short_term_memory.action.duration = minutes
             agent.short_term_memory.action.start(now)
 
         elif reaction_mode.startswith("wait"):
@@ -481,8 +536,19 @@ class ModularPlanner(IPlanner):
             agent.short_term_memory.action.start(now)
 
         else:
-            logger.info(f"[Planner] No handler for reaction: {reaction_mode}. Defaulting to idle.")
-            agent.short_term_memory.action.description = "idle"
-            agent.short_term_memory.action.event = Event(agent.name, "is", "idle", "The agent does nothing.")
-            agent.short_term_memory.action.duration = 5
-            agent.short_term_memory.action.start(now)
+            logger.info(f"[Planner] No handler for reaction: {reaction_mode}. Keeping current plan.")
+            return
+
+    def _generate_object_interaction(self, agent: Agent, game_object: str, task_description: str) -> str:
+        context = {
+            "agent": agent.get_state(),
+            "game_object": game_object,
+            "task_description": task_description,
+        }
+        prompt = self._render_prompt("object_interaction.txt", context)
+        response = self.model.generate(prompt, max_tokens=80, stop=["\n", "</obj>", "###"]).strip()
+        return response
+
+    def _parse_microtasks_text(self, text: str) -> List[str]:
+        lines = [l.strip() for l in text.strip().splitlines() if l.strip()]
+        return [re.sub(r"^[\-\*\d\).\s]+", "", l) for l in lines]

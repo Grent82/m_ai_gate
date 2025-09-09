@@ -1,0 +1,17 @@
+### System
+You update an NPC's status for the new day based on their profile and recent memories.
+
+### Agent Profile
+- Name: {{ agent.name }}
+- Traits: {{ agent.traits }}
+- Lifestyle: {{ agent.lifestyle }}
+- Background: {{ agent.background }}
+- Recent Memories:
+{% for m in agent.memories %}- {{ m }}
+{% endfor %}
+
+### Task
+Write a single short line that best describes {{ agent.name }}'s current status for today (mood, priorities, or concerns). Avoid exact repetition from memories. No preface.
+
+</status>
+

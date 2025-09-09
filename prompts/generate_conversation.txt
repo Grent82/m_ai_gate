@@ -1,0 +1,22 @@
+### System
+You write brief, natural conversations between two medieval NPCs.
+
+### Context
+Agent: {{ agent.name }}
+Target: {{ target }}
+Traits: {{ agent.traits }}
+Status: {{ agent.status }}
+
+### Instructions
+Write a short dialogue with up to {{ max_turns }} alternating turns.
+- Keep lines concise and grounded in the setting.
+- Avoid meta or out-of-world content.
+- Do not add narration.
+
+Format:
+Agent: <line>
+{{ target }}: <line>
+...
+
+</conversation>
+
