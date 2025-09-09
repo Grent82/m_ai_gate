@@ -1,4 +1,6 @@
 from typing import Dict, List
+from datetime import datetime
+import heapq
 from core.logger import setup_logger
 from memory.long_term_memory import LongTermMemory, MemoryNode
 from memory.short_term_memory import ShortTermMemory
@@ -70,16 +72,24 @@ class Retrieval:
             importance = self._normalize_dict(importance)
             relevance = self._normalize_dict(relevance)
 
+            all_ids = set().union(recency.keys(), importance.keys(), relevance.keys())
             combined_score = {
-                node_id: self.short_term_memory.recency_weight * recency.get(node_id, 0.0)
-                        + self.short_term_memory.importance_weight * importance.get(node_id, 0.0)
-                        + self.short_term_memory.relevance_weight * relevance.get(node_id, 0.0)
-                for node_id in relevance
+                node_id: (
+                    self.short_term_memory.recency_weight * recency.get(node_id, 0.0)
+                    + self.short_term_memory.importance_weight * importance.get(node_id, 0.0)
+                    + self.short_term_memory.relevance_weight * relevance.get(node_id, 0.0)
+                )
+                for node_id in all_ids
             }
             logger.debug(f"[Retrieval] Combined weighted scores: {combined_score}")
 
             top_ids = self._top_n(combined_score, max_results)
-            result[description] = [n for n in all_nodes if n.node_id in top_ids]
+            ts = self.short_term_memory.current_time or datetime.now()
+            top_nodes = [n for n in all_nodes if n.node_id in top_ids]
+            for n in top_nodes:
+                n.last_accessed = ts
+
+            result[description] = top_nodes
             logger.debug(f"[Retrieval] Top {max_results} nodes for description '{description}': {top_ids}")
 
         return result
@@ -90,9 +100,12 @@ class Retrieval:
         return result
 
     def _top_n(self, d: Dict[str, float], n: int) -> List[str]:
-        top = [k for k, _ in sorted(d.items(), key=lambda item: item[1], reverse=True)[:n]]
-        logger.debug(f"[Retrieval] Top {n} keys by score: {top}")
-        return top
+        if not d or n <= 0:
+            return []
+        top_items = heapq.nlargest(n, d.items(), key=lambda item: item[1])
+        top_keys = [k for k, _ in top_items]
+        logger.debug(f"[Retrieval] Top {n} keys by score: {top_keys}")
+        return top_keys
 
     def _cosine_similarity(self, a: List[float], b: List[float]) -> float:
         dot_product = sum(x * y for x, y in zip(a, b))
@@ -106,7 +119,12 @@ class Retrieval:
         if not values:
             return {}
         min_val, max_val = min(values.values()), max(values.values())
-        range_val = max_val - min_val or 1e-6
+        if max_val == min_val:
+            midpoint = (target_max + target_min) / 2.0
+            normalized = {k: midpoint for k in values.keys()}
+            logger.debug(f"[Retrieval] Normalized values (flat range -> midpoint): {normalized}")
+            return normalized
+        range_val = max_val - min_val
         normalized = {
             k: (v - min_val) / range_val * (target_max - target_min) + target_min
             for k, v in values.items()
