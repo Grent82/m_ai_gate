@@ -44,7 +44,6 @@ class Executor(IExecutor):
         - Places the action's event on the current tile
         - Returns a concise status string
         """
-        # Sync agent time with world time
         agent.short_term_memory.current_time = world.current_time
         action = agent.short_term_memory.action
 
@@ -52,17 +51,11 @@ class Executor(IExecutor):
             logger.debug("[Executor] No active action; agent is idle.")
             return "idle"
 
-        # Ensure we always attach the current action event to the tile in view
-        # so Perception can observe it (especially for self-chat).
         self._attach_event_to_current_tile(agent, world)
 
-        # Chat actions are pathable: move to target first, start timer on arrival
-
-        # Handle explicit waiting (no movement)
         if action.event and (action.event.object or "").lower() == "waiting":
             return "waiting"
 
-        # Compute path to target if needed
         if not action.path.is_set or not action.path.path:
             target = self._select_target_tile(agent, world)
             if target is None:
@@ -72,16 +65,13 @@ class Executor(IExecutor):
                 return "no target"
             path = self._find_path(world, agent.position, target)
             if len(path) <= 1:
-                # Already at destination
                 action.path.path = []
                 action.path.is_set = True
             else:
-                # Exclude starting tile
                 action.path.path = path[1:]
                 action.path.is_set = True
             logger.debug("[Executor] Planned path len=%d", len(action.path.path))
 
-        # Step along the path
         steps_taken = 0
         while steps_taken < max_steps and action.path.path:
             nx, ny = action.path.path.pop(0)
@@ -91,15 +81,12 @@ class Executor(IExecutor):
             self._move_event_between_tiles(world, prev, agent.position, action.event)
             steps_taken += 1
 
-        # If we've reached the destination, handle arrival hooks (chat start, subtasks)
         if not action.path.path:
             self._on_arrival(agent, world)
 
-        # Prefer a descriptive status for ongoing chat
         if action.event and (action.event.predicate or "").lower() == "chat with":
             if action.chat.end_time and world.current_time < action.chat.end_time:
                 return f"chatting with {action.chat.with_whom or 'someone'}"
-            # Not started yet (en route)
             return f"moving to {action.event.object or 'someone'} to chat"
 
         return f"moved {steps_taken} step(s)" if steps_taken else "at destination"
@@ -139,7 +126,6 @@ class Executor(IExecutor):
         address = agent.short_term_memory.action.address or ""
         tm = world.tile_manager
 
-        # Special modes
         if address and "<waiting>" in address:
             # Format: "<waiting> x y" or "... <waiting> x y"
             try:
@@ -152,22 +138,16 @@ class Executor(IExecutor):
                         return (x, y)
             except Exception:
                 logger.debug("[Executor] Failed to parse <waiting> coordinates from '%s'", address)
-            # If coordinates invalid, just stay
             return agent.position
 
         if address and "<random>" in address:
-            # Pick a random non-collidable nearby tile (within vision range)
             import random
             nearby = tm.get_nearby_tiles_positions(agent.position, radius=agent.vision_range)
             options = [(x, y) for (x, y) in nearby if not tm.is_collidable(x, y)]
             if options:
                 return random.choice(options)
-            # Fallback to current position
             return agent.position
 
-        # Removed legacy <persona>/<agent> tag handling
-
-        # If no special markers, but the event references a known persona, move toward them
         event = agent.short_term_memory.action.event
         if event and event.object:
             for other in world.agents:
@@ -176,7 +156,6 @@ class Executor(IExecutor):
                 if other.name == event.object:
                     return other.position
 
-        # If address is a free-form string without hierarchy, wander randomly nearby
         if address and ":" not in address:
             import random
             nearby = tm.get_nearby_tiles_positions(agent.position, radius=agent.vision_range)
@@ -186,7 +165,6 @@ class Executor(IExecutor):
 
         candidates = tm.find_positions_by_address(address)
         if not candidates:
-            # Degradation: try without object, then without arena
             parts = [p.strip() for p in address.split(":")]
             sector = parts[1] if len(parts) > 1 else None
             arena = parts[2] if len(parts) > 2 else None
@@ -198,7 +176,6 @@ class Executor(IExecutor):
         if not candidates:
             return None
 
-        # Pick nearest candidate by Euclidean distance
         ax, ay = agent.position
         best = min(candidates, key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2)
         return best
