@@ -51,7 +51,7 @@ class ModularPlanner(IPlanner):
                 if reaction.strip().lower().startswith("ignore"):
                     logger.debug("[Planner] Reaction was 'ignore'; keeping current plan.")
                 else:
-                    self._apply_reaction(agent, focused_event, reaction)
+                    self._apply_reaction(agent, world, focused_event, reaction)
         
         if current_action.event.predicate != "chat with":
             agent.short_term_memory.action.chat.with_whom = None
@@ -478,10 +478,16 @@ class ModularPlanner(IPlanner):
         logger.debug(f"[Planner] Reaction decision: {reaction}")
         return reaction if reaction else None
 
-    def _apply_reaction(self, agent: Agent, context_bundle: Dict[str, List[MemoryNode]], reaction_mode: str):
+    def _apply_reaction(self, agent: Agent, world: World, context_bundle: Dict[str, List[MemoryNode]], reaction_mode: str):
         logger.info(f"[Planner] Applying reaction: {reaction_mode}")
         event = context_bundle["current_event"]
         now = agent.short_term_memory.current_time
+        # Remove any lingering event from the current tile before switching actions
+        try:
+            x, y = agent.position
+            world.tile_manager.remove_event_from_tile(x, y, agent.short_term_memory.action.event)
+        except Exception:
+            pass
 
         if reaction_mode.startswith("chat with"):
             target = event.object or "someone"
@@ -492,10 +498,9 @@ class ModularPlanner(IPlanner):
 
             agent.short_term_memory.action.chat.with_whom = target
             agent.short_term_memory.action.chat.chat_log = [[s, u] for s, u in convo]
-            agent.short_term_memory.action.chat.end_time = now + timedelta(minutes=minutes)
-            agent.short_term_memory.action.chat.buffer[target] = max(5, minutes // 2)
 
-            agent.short_term_memory.action.description = f"chatting with {target}"
+            # Do not start the timer yet; executor will start it upon arrival
+            agent.short_term_memory.action.description = f"heading to chat with {target}"
             agent.short_term_memory.action.event = Event(agent.name, "chat with", target, summary)
             agent.short_term_memory.action.duration = minutes
             agent.short_term_memory.action.start(now)

@@ -59,10 +59,17 @@ class AgentAction:
         return clean_start + timedelta(minutes=self.duration)
 
     def is_chat_finished(self, current_time: datetime) -> bool:
-        if not self.address:
-            return True
+        """
+        Determine whether the current action (chat or otherwise) has finished
+        based on either chat end_time or the generic action end time.
+
+        Previously this returned True when address was missing, which caused
+        immediate replanning for pathless actions like waiting/observing.
+        """
         end_time = self.chat.end_time if self.chat.with_whom else self.get_end_time()
-        return end_time is not None and current_time >= end_time
+        if end_time is None:
+            return False
+        return current_time >= end_time
 
     def summary(self) -> Dict[str, Optional[str]]:
         return {

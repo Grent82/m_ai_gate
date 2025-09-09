@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from core.agent_action import Event
 from core.tile import Tile
@@ -135,3 +135,55 @@ class TileManager:
         :return: True if within bounds, False otherwise.
         """
         return 0 <= x < self.width and 0 <= y < self.height
+
+    # --- Added helpers for execution/path planning ---
+    def find_positions(
+        self,
+        sector: Optional[str] = None,
+        arena: Optional[str] = None,
+        game_object: Optional[str] = None,
+        include_collidable: bool = False,
+    ) -> List[Tuple[int, int]]:
+        """
+        Find all tile positions that match the requested attributes.
+
+        Any of sector/arena/game_object may be None to act as a wildcard.
+        """
+        matches: List[Tuple[int, int]] = []
+        for x in range(self.width):
+            for y in range(self.height):
+                t = self.tiles[x][y]
+                if sector is not None and t.sector != sector:
+                    continue
+                if arena is not None and t.arena != arena:
+                    continue
+                if game_object is not None and t.game_object != game_object:
+                    continue
+                if not include_collidable and t.is_collidable():
+                    continue
+                matches.append((x, y))
+        return matches
+
+    def find_positions_by_address(self, address: str) -> List[Tuple[int, int]]:
+        """
+        Parse an address in the form 'world:sector:arena:object' and find positions.
+
+        The world name is ignored (this manager already knows its world).
+        Missing parts are treated as wildcards.
+        """
+        parts = [p.strip() for p in address.split(":")]
+        # Expected formats:
+        # [world]
+        # [world, sector]
+        # [world, sector, arena]
+        # [world, sector, arena, object]
+        sector = None
+        arena = None
+        obj = None
+        if len(parts) >= 2:
+            sector = parts[1] or None
+        if len(parts) >= 3:
+            arena = parts[2] or None
+        if len(parts) >= 4:
+            obj = parts[3] or None
+        return self.find_positions(sector=sector, arena=arena, game_object=obj)

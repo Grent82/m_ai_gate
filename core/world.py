@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from core.tile_manager import TileManager
 from core.logger import setup_logger
@@ -11,8 +11,10 @@ class World:
         self.description = description
         self.tile_manager = TileManager(width, height, name)
         self.agents = []
-        self.date = datetime.now().strftime("%A, %B %d") # todo
-        self.weather = "Sunny" # todo
+        # Simulated timekeeping
+        self.current_time = datetime.now().replace(second=0, microsecond=0)
+        self.date = self.current_time.strftime("%A, %B %d")
+        self.weather = "Sunny"  # todo
         self.is_first_day = True
         self.is_new_day = True
 
@@ -38,5 +40,14 @@ class World:
     def get_state(self):
         return {
             "date": self.date,
-            "time": datetime.now().strftime("%H:%M") # todo, remove or change
+            "time": self.current_time.strftime("%H:%M"),
         }
+
+    # --- Time progression -------------------------------------------------
+    def advance_time(self, minutes: int = 1) -> None:
+        """Advance the world's simulated time and keep agents in sync."""
+        self.current_time += timedelta(minutes=minutes)
+        # Keep date in sync as well
+        self.date = self.current_time.strftime("%A, %B %d")
+        for agent in self.agents:
+            agent.short_term_memory.current_time = self.current_time
