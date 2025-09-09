@@ -137,7 +137,7 @@ class Perception:
 
             if event.subject == self.agent.name and event.predicate == "chat with":
                 short_term = self.agent.short_term_memory
-                action_event = short_term.action_event
+                action_event = short_term.action.event
 
                 if not action_event or not action_event.description:
                     logger.warning("[Perception] No valid action event or description found.")
@@ -154,8 +154,8 @@ class Perception:
                     action_event,
                     relevance=significance,
                     keywords=keywords,
+                    filling=short_term.action.chat.chat_log,
                     embedding=embedding,
-                    filling=short_term.chat_transcript,
                 )
         logger.debug("[Perception] No self-chat found")
         return None

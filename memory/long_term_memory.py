@@ -77,8 +77,15 @@ class LongTermMemory:
                     self.keyword_strength_thought[key] = self.keyword_strength_thought.get(key, 1) + 1
         return node
 
-    def add_chat(self, event: Event, relevance: float, keywords: Optional[set] = None, filling: List[List[str]] = None) -> MemoryNode:
-        node = self.add_memory_node("chat", event, relevance, keywords, filling)
+    def add_chat(
+        self,
+        event: Event,
+        relevance: float,
+        keywords: Optional[set] = None,
+        filling: List[List[str]] = None,
+        embedding: Optional[List[float]] = None,
+    ) -> MemoryNode:
+        node = self.add_memory_node("chat", event, relevance, keywords, filling, None, embedding)
         if keywords:
             for keyword in keywords:
                 key = keyword.lower()
@@ -133,4 +140,3 @@ class LongTermMemory:
             candidates.update(nodes)
 
         return [node for node in candidates if not node.is_expired()]
-
