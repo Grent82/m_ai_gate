@@ -15,6 +15,5 @@ Current sector: {{ sector }}
 Available arenas in this sector: {{ available_arenas | join(", ") }}
 Current task: {{ task_description }}
 
-Which **one** arena is the best place to do this task?
-
-Answer: {
+Which ONE arena from the list is best for this task?
+Return ONLY the arena name (exactly as listed), with no extra text.

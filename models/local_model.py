@@ -4,7 +4,7 @@ import os
 
 from core.logger import setup_logger
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, log_level="DEBUG")
 
 class LocalModel:
     """Thin wrapper around :class:`llama_cpp.Llama`.

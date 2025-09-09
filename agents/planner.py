@@ -236,48 +236,122 @@ class ModularPlanner(IPlanner):
 
         now = agent.short_term_memory.current_time
         time_key = now.strftime("%H:%M")
-        current_task = self._get_current_task_from_schedule(agent)
+        current_task_desc, remaining_minutes = self._get_current_task_from_schedule(agent)
 
         sector_prompt_context = {
             "agent": agent.get_state(),
-            "task_description": current_task,
+            "task_description": current_task_desc,
             "available_sectors": agent.spatial_memory.get_accessible_sectors(world.name),
             "current_sector": world.tile_manager.get_current_sector(agent.position)
         }
         sector_prompt = self._render_prompt("action_sector.txt", sector_prompt_context)
         #logger.debug(f"[Planner] Sector classification prompt:\n{sector_prompt}")
-        sector = self.model.generate(sector_prompt, max_tokens=20, stop=["\n"]).strip()
+        raw_sector = self.model.generate(sector_prompt, max_tokens=20, stop=["\n"]).strip()
+        logger.debug(
+            "[Planner] Sector raw output='%s', options=%s, current='%s'",
+            raw_sector,
+            sector_prompt_context["available_sectors"],
+            sector_prompt_context["current_sector"],
+        )
+        sector = self._pick_from_options(
+            raw_sector,
+            sector_prompt_context["available_sectors"],
+            sector_prompt_context["current_sector"],
+        )
 
         arena_prompt_context = {
             "agent": agent.get_state(),
             "sector": sector,
             "available_arenas": agent.spatial_memory.get_accessible_arenas(world.name, sector),
-            "task_description": current_task
+            "task_description": current_task_desc
         }
         arena_prompt = self._render_prompt("action_arena.txt", arena_prompt_context)
-        arena = self.model.generate(arena_prompt, max_tokens=20).strip()
+        raw_arena = self.model.generate(arena_prompt, max_tokens=32, stop=["\n"]).strip()
+        logger.debug(
+            "[Planner] Arena raw output='%s', options=%s",
+            raw_arena,
+            arena_prompt_context["available_arenas"],
+        )
+        arena = self._pick_from_options(
+            raw_arena,
+            arena_prompt_context["available_arenas"],
+            world.tile_manager.get_tile_path(agent.position, "arena").split(":")[-1],
+        )
 
         object_prompt_context = {
             "agent": agent.get_state(),
             "arena": arena,
             "available_objects": agent.spatial_memory.get_game_objects_in_arena(world.name, sector, arena),
-            "task_description": current_task
+            "task_description": current_task_desc
         }
         object_prompt = self._render_prompt("action_game_object.txt", object_prompt_context)
-        game_object = self.model.generate(object_prompt, max_tokens=20).strip()
+        raw_object = self.model.generate(object_prompt, max_tokens=24, stop=["\n"]).strip()
+        logger.debug(
+            "[Planner] Object raw output='%s', options=%s",
+            raw_object,
+            object_prompt_context["available_objects"],
+        )
+        game_object = self._pick_from_options(
+            raw_object,
+            object_prompt_context["available_objects"],
+            world.tile_manager.get_tile_path(agent.position, "game_object").split(":")[-1],
+        )
 
         address = f"{world.name}:{sector}:{arena}:{game_object}"
 
-        duration = 60 # todo
+        duration = min(60, max(5, remaining_minutes))  # cap and floor to reasonable bounds
 
-        event = Event(agent.name, "is", current_task, current_task)
-        agent.short_term_memory.action.description = current_task
+        event = Event(agent.name, "is", current_task_desc, current_task_desc)
+        agent.short_term_memory.action.description = current_task_desc
         agent.short_term_memory.action.event = event
         agent.short_term_memory.action.address = address
         agent.short_term_memory.action.duration = duration
         agent.short_term_memory.action.start(now)
 
-        logger.info(f"[Planner] Planned action: {current_task} at {address} for {duration}min.")
+        logger.debug(
+            "[Planner] Chosen: sector='%s', arena='%s', object='%s' -> address='%s'",
+            sector,
+            arena,
+            game_object,
+            address,
+        )
+        logger.info(f"[Planner] Planned action: '{current_task_desc}' at {address} for {duration}min.")
+
+    def _pick_from_options(self, raw: str, options: List[str], default: str) -> str:
+        """
+        Safely pick one of the provided options from a raw model output.
+        - Case-insensitive matching
+        - Accepts outputs containing extra text or JSON-like wrappers
+        - Falls back to default if no match found
+        """
+        if not options:
+            logger.debug("[Planner] No options provided. Using default='%s' for raw='%s'", default, raw)
+            return default
+
+        options_sorted = sorted(options, key=len, reverse=True)
+        raw_norm = raw.strip().strip('{}[]()"').strip()
+
+        # Try exact (case-insensitive)
+        for opt in options:
+            if raw_norm.lower() == opt.lower():
+                logger.debug("[Planner] Exact match for raw='%s' -> '%s'", raw, opt)
+                return opt
+
+        # Try substring match (prioritize longest options first)
+        for opt in options_sorted:
+            if opt.lower() in raw.lower():
+                logger.debug("[Planner] Substring match for raw='%s' -> '%s'", raw, opt)
+                return opt
+
+        # Nothing matched: return default or the first available
+        chosen = default or options_sorted[-1]
+        logger.debug(
+            "[Planner] No match found for raw='%s'. Falling back to '%s' (default). Options=%s",
+            raw,
+            chosen,
+            options,
+        )
+        return chosen
 
 
     def _get_current_task_from_schedule(self, agent: Agent) -> Tuple[str, int]:
@@ -412,5 +486,3 @@ class ModularPlanner(IPlanner):
             agent.short_term_memory.action.event = Event(agent.name, "is", "idle", "The agent does nothing.")
             agent.short_term_memory.action.duration = 5
             agent.short_term_memory.action.start(now)
-
-

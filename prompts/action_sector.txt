@@ -13,4 +13,4 @@ All available sectors in this world: {{ available_sectors | join(", ") }}
 Current sector: {{ current_sector }}
 Current task: {{ task_description }}
 
-Return the best matching sector for this task (must be one from the list above).
+Return ONLY the exact sector name from the list above (no extra text).

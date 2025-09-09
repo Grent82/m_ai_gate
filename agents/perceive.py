@@ -59,10 +59,30 @@ class Perception:
         logger.info("[Perception] Store spatial memory...")
         for tile_pos in set(tiles):
             tile_data = self._get_tile_data(tile_pos)
-            if tile_data:
-                #logger.debug(f"[Perception] Storing tile: {tile_data}")
-                world_name = tile_data.world_name
-                self.agent.spatial_memory.spatial_tree.setdefault(world_name, []).append(tile_data)
+            if not tile_data:
+                continue
+            # Only store well-defined spatial info
+            world_name = tile_data.world_name
+            sector = tile_data.sector
+            arena = tile_data.arena
+            game_object = tile_data.game_object
+
+            if not world_name or not sector or not arena:
+                continue
+
+            # Ensure sector/arena presence and add object if available
+            self.agent.spatial_memory.update_memory(world_name, sector, [arena])
+            if game_object:
+                self.agent.spatial_memory.update_arena_objects(
+                    world_name, sector, arena, [game_object]
+                )
+            logger.debug(
+                "[Perception] Spatial update: world='%s', sector='%s', arena='%s', object='%s'",
+                world_name,
+                sector,
+                arena,
+                game_object or "",
+            )
 
     def _gather_events_near_agent(self, tiles: List[Tuple[int, int]]) -> List[Event]:
         logger.info("[Perception] Gather events...")

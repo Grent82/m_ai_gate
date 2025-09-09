@@ -14,7 +14,7 @@ from .event_triple_generator import EventTripleGenerator
 from .retrieval import Retrieval
 
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, log_level="DEBUG")
 
 
 class Reflection:
@@ -50,6 +50,7 @@ class Reflection:
 
         for _, nodes in retrieved.items():
             insights = self._generate_insights_and_evidence(agent, nodes)
+            logger.debug(f"[Reflection] Insights generated: {insights}")
             for thought, evidence_ids in insights.items():
                 event = self._thought_to_event(agent, thought)
                 embedding = get_embedding(thought)
@@ -96,15 +97,20 @@ class Reflection:
             if node.event and "idle" not in node.event.description.lower()
         ]
         nodes.sort(key=lambda n: n.last_accessed, reverse=True)
+        logger.debug(f"[Reflection] Found {len(nodes)} candidate nodes for focal points.")
 
         count = agent.short_term_memory.importance_element_count or n
         selected = nodes[:count]
         statements = "\n".join(node.event.description for node in selected)
+        if not statements:
+            logger.debug("[Reflection] No statements available for focal point generation.")
+            return []
 
         template = self.env.get_template("generate_focal_points.txt")
         prompt = template.render(statements=statements, count=n)
 
         response = self.model.generate(prompt, max_tokens=200, stop=["###"])
+        logger.debug(f"[Reflection] Raw focal points response:\n{response}")
         lines = [line.strip() for line in response.strip().splitlines() if line.strip()]
         focal_points = [
             re.sub(r"^[0-9]+[\).\s]*", "", line).strip() for line in lines
@@ -123,11 +129,13 @@ class Reflection:
         prompt = template.render(statements=statements, target=agent.name, count=n)
 
         response = self.model.generate(prompt, max_tokens=400, stop=["###"])
+        logger.debug(f"[Reflection] Raw insights response:\n{response}")
         lines = [line.strip() for line in response.strip().splitlines() if line.strip()]
 
         insights: Dict[str, List[str]] = {}
         for line in lines:
             line = re.sub(r"^[0-9]+[\).\s]*", "", line)
+            logger.debug(f"[Reflection] Processing line: {line}")
             match = re.match(r"(.+?)\s*\(because of ([0-9,\s]+)\)", line)
             if match:
                 thought = match.group(1).strip()
@@ -142,6 +150,7 @@ class Reflection:
             else:
                 thought = line.strip()
                 evidence_ids = []
+                logger.debug("[Reflection] No evidence indices found.")
 
             insights[thought] = evidence_ids
 
@@ -165,6 +174,7 @@ class Reflection:
             response = self.model.generate(prompt, max_tokens=10, stop=["\n", ">>"])
             score = float(response.strip().lstrip(">").strip())
             score = max(min(score, 10.0), 1.0)
+            logger.debug(f"[Reflection] Thought significance: {score}")
         except Exception:
             logger.warning("[Reflection] Failed to parse thought significance, defaulting to 1")
             score = 1.0
