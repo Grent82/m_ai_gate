@@ -263,10 +263,26 @@ class ModularPlanner(IPlanner):
                 logger.warning(f"[Planner] Unparseable times in line; skipping: '{raw_line}' -> start='{start}', end='{end}'")
                 continue
 
+            # Handle cross‑midnight ranges by splitting into two blocks
             if end_dt <= start_dt:
-                logger.warning(
-                    f"[Planner] End time <= start time; skipping block: '{raw_line}' -> start='{start}', end='{end}'"
-                )
+                if start != end:
+                    logger.debug(
+                        f"[Planner] Splitting cross-midnight block: '{raw_line}' -> ['{start}-23:59', '00:00-{end}']"
+                    )
+                    blocks.append({
+                        "start": start,
+                        "end": "23:59",
+                        "description": description.strip(),
+                    })
+                    blocks.append({
+                        "start": "00:00",
+                        "end": end,
+                        "description": description.strip(),
+                    })
+                else:
+                    logger.warning(
+                        f"[Planner] Zero-length block; skipping: '{raw_line}' -> start='{start}', end='{end}'"
+                    )
                 continue
 
             blocks.append({
@@ -334,7 +350,8 @@ class ModularPlanner(IPlanner):
         }
         sector_prompt = self._render_prompt("action_sector.txt", sector_prompt_context)
         #logger.debug(f"[Planner] Sector classification prompt:\n{sector_prompt}")
-        raw_sector = self.model.generate(sector_prompt, max_tokens=20, stop=["\n"]).strip()
+        # Allow a slightly larger, freer response to reduce risk of empty output
+        raw_sector = self.model.generate(sector_prompt, max_tokens=64).strip()
         logger.debug(
             "[Planner] Sector raw output='%s', options=%s, current='%s'",
             raw_sector,
@@ -354,7 +371,7 @@ class ModularPlanner(IPlanner):
             "task_description": current_task_desc
         }
         arena_prompt = self._render_prompt("action_arena.txt", arena_prompt_context)
-        raw_arena = self.model.generate(arena_prompt, max_tokens=32, stop=["\n"]).strip()
+        raw_arena = self.model.generate(arena_prompt, max_tokens=64).strip()
         logger.debug(
             "[Planner] Arena raw output='%s', options=%s",
             raw_arena,
@@ -373,7 +390,7 @@ class ModularPlanner(IPlanner):
             "task_description": current_task_desc
         }
         object_prompt = self._render_prompt("action_game_object.txt", object_prompt_context)
-        raw_object = self.model.generate(object_prompt, max_tokens=24, stop=["\n"]).strip()
+        raw_object = self.model.generate(object_prompt, max_tokens=64).strip()
         logger.debug(
             "[Planner] Object raw output='%s', options=%s",
             raw_object,
@@ -473,17 +490,53 @@ class ModularPlanner(IPlanner):
 
 
     def _get_current_task_from_schedule(self, agent: Agent) -> Tuple[str, int]:
+        """
+        Determine the current task and remaining duration using the hourly schedule
+        (which already accounts for gaps and cross‑midnight sleep filling).
+        Fallback to day blocks only if hourly schedule is missing.
+        """
         now = agent.short_term_memory.current_time
-        for block in agent.short_term_memory.daily_schedule:
-            start = datetime.strptime(block["start"], "%H:%M").replace(
-                year=now.year, month=now.month, day=now.day
-            )
-            end = datetime.strptime(block["end"], "%H:%M").replace(
-                year=now.year, month=now.month, day=now.day
-            )
-            if start <= now < end:
-                duration = int((end - now).total_seconds() // 60)
-                return block["description"], duration
+        hourly = agent.short_term_memory.daily_schedule_hourly or []
+        try:
+            if hourly:
+                # Find current hour bin
+                idx = None
+                for i, entry in enumerate(hourly):
+                    entry_time = datetime.strptime(entry["time"], "%H:%M").replace(
+                        year=now.year, month=now.month, day=now.day
+                    )
+                    next_time = entry_time + timedelta(hours=1)
+                    if entry_time <= now < next_time:
+                        idx = i
+                        break
+                if idx is None:
+                    # If current time is beyond the last entry, default to idle for a short duration
+                    return "idle", 15
+
+                task = hourly[idx]["task"]
+                # Walk forward to contiguous end of this task
+                end_idx = idx + 1
+                while end_idx < len(hourly) and hourly[end_idx]["task"] == task:
+                    end_idx += 1
+                end_time = datetime.strptime(hourly[end_idx - 1]["time"], "%H:%M").replace(
+                    year=now.year, month=now.month, day=now.day
+                ) + timedelta(hours=1)
+                remaining = max(1, int((end_time - now).total_seconds() // 60))
+                return task, remaining
+
+            # Fallback to original block-based method
+            for block in agent.short_term_memory.daily_schedule:
+                start = datetime.strptime(block["start"], "%H:%M").replace(
+                    year=now.year, month=now.month, day=now.day
+                )
+                end = datetime.strptime(block["end"], "%H:%M").replace(
+                    year=now.year, month=now.month, day=now.day
+                )
+                if start <= now < end:
+                    duration = int((end - now).total_seconds() // 60)
+                    return block["description"], duration
+        except Exception:
+            pass
         return "idle", 30
 
     def _select_focused_event(self, retrieved: Dict[str, Dict[str, List[MemoryNode]]]) -> Optional[Dict[str, List[MemoryNode]]]:

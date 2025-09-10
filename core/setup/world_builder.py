@@ -169,15 +169,4 @@ class WorldBuilder:
             gravel_points.add((7, y))
         lay_gravel_path(sorted(gravel_points))
 
-        # Tavern event
-        tiles.add_event_to_tile(
-            6, 11,
-            Event(
-                subject="Innkeeper",
-                predicate="talks to",
-                object="traveler",
-                description="The innkeeper is welcoming a traveler with ale."
-            )
-        )
-
         return world
