@@ -169,16 +169,41 @@ class Executor(IExecutor):
             parts = [p.strip() for p in address.split(":")]
             sector = parts[1] if len(parts) > 1 else None
             arena = parts[2] if len(parts) > 2 else None
-            if sector and arena:
-                candidates = tm.find_positions(sector=sector, arena=arena)
-            if not candidates and sector:
-                candidates = tm.find_positions(sector=sector)
+            obj = parts[3] if len(parts) > 3 else None
+            if sector or arena or obj:
+                try:
+                    candidates = tm.find_positions(sector=sector, arena=arena, game_object=obj, include_collidable=True)
+                except Exception:
+                    candidates = []
+            if not candidates:
+                if sector and arena:
+                    candidates = tm.find_positions(sector=sector, arena=arena)
+                if not candidates and sector:
+                    candidates = tm.find_positions(sector=sector)
 
         if not candidates:
             return None
 
         ax, ay = agent.position
         best = min(candidates, key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2)
+
+        bx, by = best
+        try:
+            if tm.is_collidable(bx, by):
+                target_tile = tm.get_tile(bx, by)
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = bx + dx, by + dy
+                    if not tm.is_within_bounds(nx, ny):
+                        continue
+                    if tm.is_collidable(nx, ny):
+                        continue
+                    t2 = tm.get_tile(nx, ny)
+                    if t2.sector == target_tile.sector and t2.arena == target_tile.arena:
+                        return (nx, ny)
+                return best
+        except Exception:
+            pass
+
         return best
 
     def _find_path(
@@ -213,7 +238,6 @@ class Executor(IExecutor):
                 return 0.5
             if obj in {"bush"}:
                 return 1.2
-            # Default for grass, floor, soil, wheat, etc.
             return 1.0
 
         pq: List[Tuple[float, Tuple[int, int]]] = []
@@ -239,7 +263,6 @@ class Executor(IExecutor):
             logger.debug("[Executor] No path found from %s to %s", start, goal)
             return [start]
 
-        # Reconstruct path
         path: List[Tuple[int, int]] = []
         cur = goal
         while cur is not None:
@@ -257,7 +280,6 @@ class Executor(IExecutor):
         action = agent.short_term_memory.action
         self._attach_event_to_current_tile(agent, world)
 
-        # Start chat upon arrival if applicable and not yet timed
         if action.event and (action.event.predicate or "").lower() == "chat with" and not action.chat.end_time:
             target = action.event.object or "someone"
             if not action.chat.with_whom:
@@ -297,14 +319,12 @@ class Executor(IExecutor):
         if not action.is_chat_finished(now):
             return None
 
-        # Remove event from current tile
         try:
             x, y = agent.position
             world.tile_manager.remove_event_from_tile(x, y, action.event)
         except Exception:
             pass
 
-        # Reset transient execution state
         action.path.path.clear()
         action.path.is_set = False
         action.chat.with_whom = None
