@@ -1,4 +1,5 @@
 from collections import deque
+import heapq
 from datetime import timedelta
 from typing import List, Optional, Tuple
 
@@ -184,15 +185,14 @@ class Executor(IExecutor):
         self, world: World, start: Tuple[int, int], goal: Tuple[int, int]
     ) -> List[Tuple[int, int]]:
         """
-        Simple BFS pathfinding on the tile grid avoiding collidable tiles.
+        Cost-aware pathfinding (Dijkstra) that prefers low-cost terrain like gravel.
+
         Returns the list of coordinates from start to goal (inclusive).
         """
         if start == goal:
             return [start]
 
         tm = world.tile_manager
-        q = deque([start])
-        came_from = {start: None}
 
         def neighbors(x: int, y: int):
             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
@@ -203,17 +203,39 @@ class Executor(IExecutor):
                     continue
                 yield (nx, ny)
 
-        while q:
-            cx, cy = q.popleft()
+        def move_cost(x: int, y: int) -> float:
+            try:
+                obj = tm.get_tile(x, y).game_object or ""
+            except Exception:
+                return 1.0
+            obj = obj.lower()
+            if obj in {"gravel", "path", "road"}:
+                return 0.5
+            if obj in {"bush"}:
+                return 1.2
+            # Default for grass, floor, soil, wheat, etc.
+            return 1.0
+
+        pq: List[Tuple[float, Tuple[int, int]]] = []
+        heapq.heappush(pq, (0.0, start))
+        came_from: dict[Tuple[int, int], Tuple[int, int] | None] = {start: None}
+        g_cost: dict[Tuple[int, int], float] = {start: 0.0}
+
+        while pq:
+            cost, (cx, cy) = heapq.heappop(pq)
             if (cx, cy) == goal:
                 break
-            for n in neighbors(cx, cy):
-                if n not in came_from:
-                    came_from[n] = (cx, cy)
-                    q.append(n)
+            if cost > g_cost.get((cx, cy), float("inf")):
+                continue
+            for nx, ny in neighbors(cx, cy):
+                step = move_cost(nx, ny)
+                new_cost = cost + step
+                if new_cost < g_cost.get((nx, ny), float("inf")):
+                    g_cost[(nx, ny)] = new_cost
+                    came_from[(nx, ny)] = (cx, cy)
+                    heapq.heappush(pq, (new_cost, (nx, ny)))
 
         if goal not in came_from:
-            # no path; return just the start to indicate failure
             logger.debug("[Executor] No path found from %s to %s", start, goal)
             return [start]
 
