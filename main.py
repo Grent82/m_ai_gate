@@ -34,7 +34,7 @@ def run_agent():
         # Retrieval is instantiated per agent per tick below
 
     # Simulate time progression across ticks
-    TICKS = 12
+    TICKS = 3600 // 5  # Simulate for 1 in-world day with 5-minute ticks
     TICK_MINUTES = 5
     for tick in range(TICKS):
         logger.info(f"=== Tick {tick + 1}/{TICKS} @ {world.current_time.strftime('%H:%M')} ===")

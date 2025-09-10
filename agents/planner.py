@@ -37,7 +37,14 @@ class ModularPlanner(IPlanner):
         now = agent.short_term_memory.current_time
         current_action = agent.short_term_memory.action
 
-        if current_action.is_chat_finished(now):
+        # If there is no active action yet (e.g., at simulation start), or
+        # the current action has finished, determine a new action.
+        if (
+            current_action.start_time is None
+            or current_action.duration is None
+            or not current_action.description
+            or current_action.is_chat_finished(now)
+        ):
             logger.info("[Planner] Current action expired. Determining new plan...")
             self._determine_next_action(agent, world) # todo
 

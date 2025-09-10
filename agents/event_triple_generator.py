@@ -6,7 +6,7 @@ from models.local_model import LocalModel
 from core.agent import Agent
 from core.logger import setup_logger
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, log_level="DEBUG")
 
 class EventTripleGenerator:
     def __init__(self, model: LocalModel, prompt_dir: str = "prompts"):

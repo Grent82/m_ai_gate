@@ -3,7 +3,7 @@ from models.local_model import LocalModel
 from core.agent import Agent
 from core.logger import setup_logger
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, log_level="DEBUG")
 
 class InnerThoughtGenerator:
     def __init__(self, model: LocalModel, prompt_dir: str = "prompts"):
@@ -22,10 +22,7 @@ class InnerThoughtGenerator:
 
         prompt = template.render(context)
 
-        #logger.debug(f"[InnerThought] Rendered prompt:\n{prompt}")
-
         response = self.model.generate(prompt, max_tokens=100, stop=["</thought>", "User:", "###"])
-        logger.debug(f"[InnerThought] Raw LLM response: {response}")
+        logger.debug(f"[InnerThought] Model response: {response}")
 
-        # Optionally clean the output
         return response.strip().replace("<thought>", "").replace("</thought>", "").strip()

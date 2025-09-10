@@ -6,7 +6,7 @@ from memory.long_term_memory import LongTermMemory, MemoryNode
 from memory.short_term_memory import ShortTermMemory
 from models.embeddings import get_embedding
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, log_level="DEBUG")
 
 class Retrieval:
     def __init__(self, long_term_memory: LongTermMemory, short_term_memory: ShortTermMemory):

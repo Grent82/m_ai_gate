@@ -11,7 +11,7 @@ from models.embeddings import get_embedding
 from models.local_model import LocalModel
 from core.logger import setup_logger
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, log_level="DEBUG")
 
 
 class Perception:
@@ -33,7 +33,7 @@ class Perception:
             nearby_tiles = world.tile_manager.get_nearby_tiles_positions(
                 agent.position, agent.vision_range
             )
-            logger.debug(f"[Perception] Nearby tiles: {nearby_tiles}")
+            #logger.debug(f"[Perception] Nearby tiles: {nearby_tiles}")
             self._store_spatial_memory(nearby_tiles)
 
             nearest_events = self._gather_events_near_agent(nearby_tiles)
@@ -56,7 +56,7 @@ class Perception:
         self.world = world
 
     def _store_spatial_memory(self, tiles: List[Tuple[int, int]]) -> None:
-        logger.info("[Perception] Store spatial memory...")
+        #logger.debug("[Perception] Store spatial memory...")
         for tile_pos in set(tiles):
             tile_data = self._get_tile_data(tile_pos)
             if not tile_data:
@@ -76,16 +76,11 @@ class Perception:
                 self.agent.spatial_memory.update_arena_objects(
                     world_name, sector, arena, [game_object]
                 )
-            logger.debug(
-                "[Perception] Spatial update: world='%s', sector='%s', arena='%s', object='%s'",
-                world_name,
-                sector,
-                arena,
-                game_object or "",
-            )
+            
+            #logger.debug("[Perception] Spatial update: world='%s', sector='%s', arena='%s', object='%s'",world_name,sector,arena,game_object or "",)
 
     def _gather_events_near_agent(self, tiles: List[Tuple[int, int]]) -> List[Event]:
-        logger.info("[Perception] Gather events...")
+        logger.debug("[Perception] Gather events...")
         current_arena = self.world.tile_manager.get_tile_path(
             self.agent.position, "arena"
         )
@@ -113,6 +108,7 @@ class Perception:
                 seen_tuples.add(triple)
                 distance = self.world.calculate_distance(self.agent.position, tile_pos)
                 percept_events.append((distance, event))
+
                 logger.debug(
                     f"[Perception] Added event: {event} at distance {distance}"
                 )
@@ -128,7 +124,7 @@ class Perception:
     def _process_self_chat(
         self, events: List[Event]
     ) -> Optional[MemoryNode]:
-        logger.info("[Perception] Process self-chat...")
+        logger.debug("[Perception] Process self-chat...")
         latest_events = self.agent.long_term_memory.get_summarized_latest_events(self.agent.retention)
 
         for event in events:
@@ -145,7 +141,8 @@ class Perception:
                 
                 keywords = self._extract_keywords(event.subject, event.object)
 
-                logger.debug(f"[Perception] Current self-chat {action_event.description}")
+                if action_event.description: 
+                    logger.debug(f"[Perception] Current self-chat {action_event.description}")
 
                 embedding = get_embedding(action_event.description)
                 significance = self._calculate_significance(action_event.description, "chat")
@@ -163,7 +160,7 @@ class Perception:
     def _store_significant_percepts(
         self, events: List[Event], chat_node: Optional[MemoryNode]
     ) -> List[MemoryNode]:
-        logger.info("[Perception] Store significant percepts...")
+        #logger.debug("[Perception] Store significant percepts...")
         latest_events = self.agent.long_term_memory.get_summarized_latest_events(self.agent.retention)
         chat_node_ids = [chat_node.node_id] if chat_node else []
 
@@ -184,7 +181,7 @@ class Perception:
         event: Event,
         chat_node_ids: Optional[List[str]] = None,
     ) -> Optional[MemoryNode]:
-        logger.info("[Perception] Store percept...")
+        #logger.debug("[Perception] Store percept...")
         significance = self._calculate_significance(event.description, percept_type)
 
         keywords = self._extract_keywords(event.subject, event.object)
@@ -205,7 +202,7 @@ class Perception:
         )
 
     def _calculate_significance(self, description: str, percept_type: str) -> float:
-        logger.info("[Perception] Calculate significance...")
+        #logger.debug("[Perception] Calculate significance...")
         context = {"agent": self.agent.get_state(), "description": description}
         template_file = (
             "event_significance.txt"
@@ -220,7 +217,7 @@ class Perception:
             score = max(min(score, 10.0), 1.0)
 
             #logger.debug(f"[Perception] Prompt used for significance: {prompt}")
-            logger.debug(f"[Perception] Raw model response: '{response.strip()}' => Score: {score}")
+            #logger.debug(f"[Perception] Raw model response: '{response.strip()}' => Score: {score}")
         except Exception as e:
             logger.warning(f"[Perception] Significance defaulted: {e}")
             score = 1.0
