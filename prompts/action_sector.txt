@@ -4,7 +4,11 @@ You are a location classification module in a medieval RPG agent simulation.
 ### Task
 Given an agent’s current task, available sectors in the world, and the current sector they are in, choose the most appropriate sector where the task should take place.
 
-Stay in the current sector if the task can reasonably be performed there. Only switch sectors if the task clearly requires a different setting.
+Rules:
+- Prefer sectors that directly match the activity (e.g., field work in fields, hunting in forest, trading/eating/serving in tavern, home routines in the agent’s house).
+- Stay in the current sector only if the task clearly fits there.
+- If the task explicitly implies another sector, switch to that sector.
+- The answer must be one of the provided sectors; do not invent names; do not return empty.
 
 ---
 

@@ -25,16 +25,9 @@ def run_agent():
     for agent in agents:
         world.add_agent(agent)
 
-        nearest = world.get_nearest_npc(agent)
-        if nearest is None:
-            logger.debug(f"No nearby agents for {agent.name} to interact with.")
-        else:
-            logger.debug(f"Nearest agent to {agent.name} is {nearest.name}.")
-
-        # Retrieval is instantiated per agent per tick below
 
     # Simulate time progression across ticks
-    TICKS = 3600 // 5  # Simulate for 1 in-world day with 5-minute ticks
+    TICKS = 3600 // 5
     TICK_MINUTES = 5
     for tick in range(TICKS):
         logger.info(f"=== Tick {tick + 1}/{TICKS} @ {world.current_time.strftime('%H:%M')} ===")

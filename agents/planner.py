@@ -342,15 +342,30 @@ class ModularPlanner(IPlanner):
         time_key = now.strftime("%H:%M")
         current_task_desc, remaining_minutes = self._get_current_task_from_schedule(agent)
 
+        available_sectors = agent.spatial_memory.get_accessible_sectors(world.name)
+        if not available_sectors:
+            try:
+                tm = world.tile_manager
+                seen = set()
+                for x in range(tm.width):
+                    for y in range(tm.height):
+                        t = tm.get_tile(x, y)
+                        if t.sector:
+                            seen.add(t.sector)
+                available_sectors = sorted(seen)
+                logger.debug("[Planner] Fallback sectors from world: %s", available_sectors)
+            except Exception as e:
+                logger.debug("[Planner] Could not build fallback sector list: %s", e)
+
+        current_sector = world.tile_manager.get_current_sector(agent.position)
         sector_prompt_context = {
             "agent": agent.get_state(),
             "task_description": current_task_desc,
-            "available_sectors": agent.spatial_memory.get_accessible_sectors(world.name),
-            "current_sector": world.tile_manager.get_current_sector(agent.position)
+            "available_sectors": available_sectors,
+            "current_sector": current_sector,
         }
         sector_prompt = self._render_prompt("action_sector.txt", sector_prompt_context)
         #logger.debug(f"[Planner] Sector classification prompt:\n{sector_prompt}")
-        # Allow a slightly larger, freer response to reduce risk of empty output
         raw_sector = self.model.generate(sector_prompt, max_tokens=64).strip()
         logger.debug(
             "[Planner] Sector raw output='%s', options=%s, current='%s'",
@@ -360,14 +375,37 @@ class ModularPlanner(IPlanner):
         )
         sector = self._pick_from_options(
             raw_sector,
-            sector_prompt_context["available_sectors"],
-            sector_prompt_context["current_sector"],
+            available_sectors,
+            current_sector,
+        )
+
+        available_arenas = agent.spatial_memory.get_accessible_arenas(world.name, sector)
+        if not available_arenas:
+            try:
+                tm = world.tile_manager
+                poss = tm.find_positions(sector=sector, include_collidable=True)
+                seen = []
+                seen_set = set()
+                for (x, y) in poss:
+                    a = tm.get_tile(x, y).arena
+                    if a and a not in seen_set:
+                        seen.append(a)
+                        seen_set.add(a)
+                available_arenas = seen
+                logger.debug("[Planner] Fallback arenas for sector '%s': %s", sector, available_arenas)
+            except Exception as e:
+                logger.debug("[Planner] Could not build fallback arenas: %s", e)
+
+        current_arena = world.tile_manager.get_tile_path(agent.position, "arena").split(":")[-1]
+        default_arena = (
+            current_arena if (sector == current_sector and current_arena in available_arenas)
+            else (available_arenas[0] if available_arenas else current_arena)
         )
 
         arena_prompt_context = {
             "agent": agent.get_state(),
             "sector": sector,
-            "available_arenas": agent.spatial_memory.get_accessible_arenas(world.name, sector),
+            "available_arenas": available_arenas,
             "task_description": current_task_desc
         }
         arena_prompt = self._render_prompt("action_arena.txt", arena_prompt_context)
@@ -375,18 +413,54 @@ class ModularPlanner(IPlanner):
         logger.debug(
             "[Planner] Arena raw output='%s', options=%s",
             raw_arena,
-            arena_prompt_context["available_arenas"],
+            available_arenas,
         )
         arena = self._pick_from_options(
             raw_arena,
-            arena_prompt_context["available_arenas"],
-            world.tile_manager.get_tile_path(agent.position, "arena").split(":")[-1],
+            available_arenas,
+            default_arena,
         )
+
+        available_objects = agent.spatial_memory.get_game_objects_in_arena(world.name, sector, arena)
+        if not available_objects:
+            try:
+                tm = world.tile_manager
+                poss = tm.find_positions(sector=sector, arena=arena, include_collidable=True)
+                seen = []
+                seen_set = set()
+                for (x, y) in poss:
+                    g = tm.get_tile(x, y).game_object
+                    if g and g not in seen_set:
+                        seen.append(g)
+                        seen_set.add(g)
+                available_objects = seen
+                logger.debug(
+                    "[Planner] Fallback objects for sector='%s', arena='%s': %s",
+                    sector,
+                    arena,
+                    available_objects,
+                )
+            except Exception as e:
+                logger.debug("[Planner] Could not build fallback objects: %s", e)
+
+        structural = {"floor", "wall", "door"}
+        default_object = None
+        if sector == current_sector and arena == current_arena:
+            try:
+                current_object = world.tile_manager.get_tile_path(agent.position, "game_object").split(":")[-1]
+                if current_object in available_objects:
+                    default_object = current_object
+            except Exception:
+                pass
+        if not default_object:
+            default_object = next((o for o in available_objects if o not in structural), None)
+        if not default_object:
+            default_object = available_objects[0] if available_objects else "floor"
 
         object_prompt_context = {
             "agent": agent.get_state(),
             "arena": arena,
-            "available_objects": agent.spatial_memory.get_game_objects_in_arena(world.name, sector, arena),
+            "available_objects": available_objects,
             "task_description": current_task_desc
         }
         object_prompt = self._render_prompt("action_game_object.txt", object_prompt_context)
@@ -394,19 +468,25 @@ class ModularPlanner(IPlanner):
         logger.debug(
             "[Planner] Object raw output='%s', options=%s",
             raw_object,
-            object_prompt_context["available_objects"],
+            available_objects,
         )
         game_object = self._pick_from_options(
             raw_object,
-            object_prompt_context["available_objects"],
-            world.tile_manager.get_tile_path(agent.position, "game_object").split(":")[-1],
+            available_objects,
+            default_object,
         )
+
+        if available_arenas and arena not in available_arenas:
+            logger.debug("[Planner] Adjusted arena '%s' not in available list, using default '%s'", arena, default_arena)
+            arena = default_arena
+        if available_objects and game_object not in available_objects:
+            logger.debug("[Planner] Adjusted object '%s' not in available list, using default '%s'", game_object, default_object)
+            game_object = default_object
 
         address = f"{world.name}:{sector}:{arena}:{game_object}"
 
         duration = min(60, max(5, remaining_minutes))  # cap and floor to reasonable bounds
 
-        # Create a semantic event triple if available
         try:
             triples = self.event_triples.generate_event(agent, current_task_desc)
             if triples:
@@ -424,7 +504,6 @@ class ModularPlanner(IPlanner):
         agent.short_term_memory.action.duration = duration
         agent.short_term_memory.action.start(now)
 
-        # Optional object-level interaction description and triple
         try:
             obj_desc = self._generate_object_interaction(agent, game_object, current_task_desc)
             agent.short_term_memory.action.object_interaction.description = obj_desc
@@ -435,7 +514,6 @@ class ModularPlanner(IPlanner):
         except Exception as e:
             logger.debug(f"[Planner] Object interaction generation skipped: {e}")
 
-        # Optional microtasks for the current action
         try:
             summary = f"From {time_key} for {duration} minutes, {agent.name} is {current_task_desc}."
             micro = self.generate_microtasks(agent, world, summary)
@@ -466,19 +544,16 @@ class ModularPlanner(IPlanner):
         options_sorted = sorted(options, key=len, reverse=True)
         raw_norm = raw.strip().strip('{}[]()"').strip()
 
-        # Try exact (case-insensitive)
         for opt in options:
             if raw_norm.lower() == opt.lower():
                 logger.debug("[Planner] Exact match for raw='%s' -> '%s'", raw, opt)
                 return opt
 
-        # Try substring match (prioritize longest options first)
         for opt in options_sorted:
             if opt.lower() in raw.lower():
                 logger.debug("[Planner] Substring match for raw='%s' -> '%s'", raw, opt)
                 return opt
 
-        # Nothing matched: return default or the first available
         chosen = default or (options_sorted[-1] if options_sorted else "here")
         logger.debug(
             "[Planner] No match found for raw='%s'. Falling back to '%s' (default). Options=%s",
@@ -499,7 +574,6 @@ class ModularPlanner(IPlanner):
         hourly = agent.short_term_memory.daily_schedule_hourly or []
         try:
             if hourly:
-                # Find current hour bin
                 idx = None
                 for i, entry in enumerate(hourly):
                     entry_time = datetime.strptime(entry["time"], "%H:%M").replace(
@@ -510,11 +584,9 @@ class ModularPlanner(IPlanner):
                         idx = i
                         break
                 if idx is None:
-                    # If current time is beyond the last entry, default to idle for a short duration
                     return "idle", 15
 
                 task = hourly[idx]["task"]
-                # Walk forward to contiguous end of this task
                 end_idx = idx + 1
                 while end_idx < len(hourly) and hourly[end_idx]["task"] == task:
                     end_idx += 1
@@ -524,7 +596,6 @@ class ModularPlanner(IPlanner):
                 remaining = max(1, int((end_time - now).total_seconds() // 60))
                 return task, remaining
 
-            # Fallback to original block-based method
             for block in agent.short_term_memory.daily_schedule:
                 start = datetime.strptime(block["start"], "%H:%M").replace(
                     year=now.year, month=now.month, day=now.day
@@ -582,7 +653,6 @@ class ModularPlanner(IPlanner):
         event = context_bundle["current_event"]
         memories = [n.event.description for n in context_bundle.get("context_nodes", [])]
 
-        # Guardrails to avoid late-night or sleep-interrupting reactions
         now = agent.short_term_memory.current_time
         current_desc = (agent.short_term_memory.action.description or "").lower()
         if now and now.hour >= 23:
@@ -613,7 +683,6 @@ class ModularPlanner(IPlanner):
         logger.info(f"[Planner] Applying reaction: {reaction_mode}")
         event = context_bundle["current_event"]
         now = agent.short_term_memory.current_time
-        # Remove any lingering event from the current tile before switching actions
         try:
             x, y = agent.position
             world.tile_manager.remove_event_from_tile(x, y, agent.short_term_memory.action.event)

@@ -2,7 +2,12 @@
 You are a game object selector in a medieval RPG world.
 
 ### Instruction
-Given a current activity and a list of interactable objects in the arena, pick the **most relevant single object** the agent should interact with.
+Given a current activity and a list of interactable objects in the arena, pick the most relevant single object the agent should interact with.
+
+Rules:
+- Prefer functional objects relevant to the action (e.g., table/bench/fireplace for meals; workbench for repairs/crafting; bar counter for serving/trading; bed for sleep; wheat/soil for field work; bush/tree edge for hunting/observing).
+- Avoid returning structural or generic surfaces like "floor", "wall", or "door" unless the task explicitly involves standing/waiting/stretching and there is no better choice.
+- The answer must be one of the provided objects; do not invent names; do not return empty.
 
 ---
 
