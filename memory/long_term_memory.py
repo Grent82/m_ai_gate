@@ -67,10 +67,18 @@ class LongTermMemory:
 
     def add_thought(self, event: Event, relevance: float, keywords: Optional[set] = None, filling: List[List[str]] = None, embedding: Optional[List[float]] = None) -> MemoryNode:
         expiration = datetime.now() + timedelta(days=30)
-        node = self.add_memory_node("thought", event, relevance, keywords, filling, expiration, embedding)
+        # Always index the core subject/predicate/object terms as keywords for retrieval
+        base_keys: Set[str] = set()
+        for k in (event.subject, event.predicate, event.object):
+            if k:
+                base_keys.add(str(k))
+        all_keys: Set[str] = set(keywords) if keywords else set()
+        all_keys |= base_keys
 
-        if keywords:
-            for keyword in keywords:
+        node = self.add_memory_node("thought", event, relevance, all_keys or None, filling, expiration, embedding)
+
+        if all_keys:
+            for keyword in all_keys:
                 key = keyword.lower()
                 self.keyword_to_thought.setdefault(key, []).insert(0, node)
                 if f"{event.predicate} {event.object}" != "is idle":
