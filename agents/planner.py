@@ -440,48 +440,69 @@ class ModularPlanner(IPlanner):
             default_arena,
         )
 
+        tm = world.tile_manager
         available_objects = agent.spatial_memory.get_game_objects_in_arena(world.name, sector, arena)
-        if not available_objects:
+
+        def tile_scan_objects() -> List[str]:
             try:
-                tm = world.tile_manager
                 poss = tm.find_positions(sector=sector, arena=arena, include_collidable=True)
-                seen = []
+                seen: List[str] = []
                 seen_set = set()
                 for (x, y) in poss:
                     g = tm.get_tile(x, y).game_object
                     if g and g not in seen_set:
                         seen.append(g)
                         seen_set.add(g)
-                available_objects = seen
-                logger.debug(
-                    "[Planner] Fallback objects for sector='%s', arena='%s': %s",
-                    sector,
-                    arena,
-                    available_objects,
-                )
+                logger.debug("[Planner] Tile-scan objects for sector='%s', arena='%s': %s", sector, arena, seen)
+                return seen
             except Exception as e:
-                logger.debug("[Planner] Could not build fallback objects: %s", e)
+                logger.debug("[Planner] Could not build objects via tile scan: %s", e)
+                return []
 
         structural = {"floor", "wall", "door"}
+
+        def is_reachable_object(obj: str) -> bool:
+            try:
+                positions = tm.find_positions(sector=sector, arena=arena, game_object=obj, include_collidable=True)
+            except Exception:
+                positions = []
+            for (gx, gy) in positions:
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = gx + dx, gy + dy
+                    if not tm.is_within_bounds(nx, ny):
+                        continue
+                    if tm.is_collidable(nx, ny):
+                        continue
+                    t2 = tm.get_tile(nx, ny)
+                    if t2.sector == sector and t2.arena == arena:
+                        return True
+            return False
+
+        # If spatial memory is empty or only structural, refresh from tiles
+        if not available_objects or all(o in structural for o in available_objects):
+            available_objects = tile_scan_objects()
+
+        # Build candidate options: prefer non-structural and reachable
+        non_struct = [o for o in available_objects if o not in structural]
+        non_struct_reachable = [o for o in non_struct if is_reachable_object(o)]
+        object_options_for_prompt = non_struct_reachable or non_struct or available_objects or ["floor"]
+
+        # Compute a sensible default
         default_object = None
         if sector == current_sector and arena == current_arena:
             try:
                 current_object = world.tile_manager.get_tile_path(agent.position, "game_object").split(":")[-1]
-                if current_object in available_objects:
+                if current_object in object_options_for_prompt:
                     default_object = current_object
             except Exception:
                 pass
         if not default_object:
-            default_object = next((o for o in available_objects if o not in structural), None)
-        if not default_object:
-            default_object = available_objects[0] if available_objects else "floor"
+            default_object = object_options_for_prompt[0]
 
-        # Improve options fed to the LLM by filtering structural items when possible
-        non_structural_objects = [o for o in available_objects if o not in structural]
-        object_options_for_prompt = non_structural_objects or available_objects
         logger.debug(
-            "[Planner] Object options (filtered=%s): %s",
-            bool(non_structural_objects),
+            "[Planner] Object options (non_struct=%d, reachable=%d): %s",
+            len(non_struct),
+            len(non_struct_reachable),
             object_options_for_prompt,
         )
 
