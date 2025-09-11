@@ -373,9 +373,10 @@ class ModularPlanner(IPlanner):
         raw_sector = self.model.generate(
             sector_prompt,
             max_tokens=32,
-            stop=["\n", "User:", "###"],
+            stop=["User:", "###"],
             temperature=0.1,
             top_p=0.5,
+            allowed_strings=available_sectors,
         ).strip()
         logger.debug(
             "[Planner] Sector raw output='%s', options=%s, current='%s'",
@@ -423,9 +424,10 @@ class ModularPlanner(IPlanner):
         raw_arena = self.model.generate(
             arena_prompt,
             max_tokens=32,
-            stop=["\n", "User:", "###"],
+            stop=["User:", "###"],
             temperature=0.1,
             top_p=0.5,
+            allowed_strings=available_arenas,
         ).strip()
         logger.debug(
             "[Planner] Arena raw output='%s', options=%s",
@@ -494,9 +496,10 @@ class ModularPlanner(IPlanner):
         raw_object = self.model.generate(
             object_prompt,
             max_tokens=32,
-            stop=["\n", "User:", "###"],
+            stop=["User:", "###"],
             temperature=0.1,
             top_p=0.5,
+            allowed_strings=object_options_for_prompt,
         ).strip()
         logger.debug(
             "[Planner] Object raw output='%s', options=%s",
@@ -735,9 +738,9 @@ class ModularPlanner(IPlanner):
         response = self.model.generate(
             prompt,
             max_tokens=32,
-            stop=["\n", "</reaction>", "User:", "###"],
-            temperature=0.1,
-            top_p=0.5,
+            stop=["</reaction>", "User:", "###"],
+            temperature=0.2,
+            top_p=0.6,
         )
         reaction = response.strip()
         logger.debug(f"[Planner] Reaction decision: {reaction}")
