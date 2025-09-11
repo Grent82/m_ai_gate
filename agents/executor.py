@@ -296,8 +296,15 @@ class Executor(IExecutor):
             )
 
         if action.subtasks:
-            sub = action.subtasks.pop(0)
-            desc = f"{agent.name} {sub}."
+            sub_raw = action.subtasks.pop(0)
+            sub = self._clean_subtask_text(agent, sub_raw)
+            import re as _re
+            if _re.match(rf"^{_re.escape(agent.name)}\b", sub, _re.IGNORECASE):
+                desc = sub if sub.endswith('.') else sub + '.'
+            else:
+                desc = f"{agent.name} {sub}"
+                if not desc.endswith('.'):
+                    desc += '.'
             evt = Event(agent.name, "does", sub, desc)
             embedding = get_embedding(desc)
             try:
@@ -305,6 +312,24 @@ class Executor(IExecutor):
                 logger.debug("[Executor] Logged subtask as event: %s", desc)
             except Exception as e:
                 logger.debug("[Executor] Failed to log subtask memory: %s", e)
+
+    def _clean_subtask_text(self, agent: Agent, text: str) -> str:
+        """Normalize microtask text: remove timestamps, duplicate subject names, and stray labels."""
+        import re
+        s = text.strip()
+        # Drop bullets/numbers
+        s = re.sub(r"^[\u2022•\-\*\d\)\.\s]+", "", s)
+        # Remove time ranges or prefixes like "HH:MM - HH:MM -" or "HH:MM:"
+        s = re.sub(r"^(?:\d{1,2}:\d{2}(?::\d{2})?\s*(?:-\s*\d{1,2}:\d{2}(?::\d{2})?)?\s*[-:]?\s*)+", "", s)
+        # Remove stray ":MM:" leftovers at start
+        s = re.sub(r"^:\d{1,2}:\s*", "", s)
+        # Remove leading agent name if present (case-insensitive), with optional punctuation
+        s = re.sub(rf"^\s*{re.escape(agent.name)}\s*[:,\-–—]?\s*", "", s, flags=re.IGNORECASE)
+        # Remove single-word labels like "bonfire:" at the start
+        s = re.sub(r"^[A-Za-z][A-Za-z\-]*:\s*", "", s)
+        # Normalize whitespace
+        s = re.sub(r"\s+", " ", s).strip()
+        return s
 
     # Lifecycle utilities -----------------------------------------------
     def cleanup_expired(self, agent: Agent, world: World) -> Optional[str]:

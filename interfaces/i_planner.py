@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Optional
 from core.agent import Agent
 from core.world import World
 from memory.long_term_memory import MemoryNode
@@ -7,5 +7,5 @@ from memory.long_term_memory import MemoryNode
 
 class IPlanner(ABC):
     @abstractmethod
-    def plan(self, agent: Agent, world: World, retrieved: Dict[str, Dict[str, List[MemoryNode]]]) -> str:
+    def plan(self, agent: Agent, world: World, retrieved: Dict[str, Dict[str, List[MemoryNode]]], perceived_nodes: Optional[List[MemoryNode]] = None) -> str:
         pass

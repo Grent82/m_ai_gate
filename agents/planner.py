@@ -24,7 +24,7 @@ class ModularPlanner(IPlanner):
         self.chat_manager = ChatManager(model, template_path)
         self.identity = IdentityReviser(model, template_path)
 
-    def plan(self, agent: Agent, world: World, retrieved: Dict[str, Dict[str, List[MemoryNode]]]) -> str:
+    def plan(self, agent: Agent, world: World, retrieved: Dict[str, Dict[str, List[MemoryNode]]], perceived_nodes: Optional[List[MemoryNode]] = None) -> str:
         logger.info("[Planner] Running full daily plan...")
 
         if not isinstance(agent, Agent) or not isinstance(world, World):
@@ -48,8 +48,11 @@ class ModularPlanner(IPlanner):
             logger.info("[Planner] Current action expired. Determining new plan...")
             self._determine_next_action(agent, world) # todo
 
+        # Prefer reacting to live percepts first; fall back to retrieved-context event
         focused_event = None
-        if retrieved and retrieved.keys():
+        if perceived_nodes:
+            focused_event = self._select_focused_event_from_percepts(agent, perceived_nodes)
+        if not focused_event and retrieved and retrieved.keys():
             focused_event = self._select_focused_event(retrieved) # todo
 
         if focused_event:
@@ -171,6 +174,7 @@ class ModularPlanner(IPlanner):
             "schedule_summary": schedule_summary,
         }
         prompt = self._render_prompt("microtasks.txt", context)
+        logger.debug(f"[Planner] Microtasks prompt =>\n{prompt}")
         response = self.model.generate(prompt, max_tokens=500, stop=["</microtasks>", "User:", "###"])
         logger.debug(f"Microtasks response: {response}")
         return response.strip()
@@ -365,7 +369,7 @@ class ModularPlanner(IPlanner):
             "current_sector": current_sector,
         }
         sector_prompt = self._render_prompt("action_sector.txt", sector_prompt_context)
-        #logger.debug(f"[Planner] Sector classification prompt:\n{sector_prompt}")
+        logger.debug(f"[Planner] Sector prompt =>\n{sector_prompt}")
         raw_sector = self.model.generate(sector_prompt, max_tokens=64).strip()
         logger.debug(
             "[Planner] Sector raw output='%s', options=%s, current='%s'",
@@ -409,6 +413,7 @@ class ModularPlanner(IPlanner):
             "task_description": current_task_desc
         }
         arena_prompt = self._render_prompt("action_arena.txt", arena_prompt_context)
+        logger.debug(f"[Planner] Arena prompt =>\n{arena_prompt}")
         raw_arena = self.model.generate(arena_prompt, max_tokens=64).strip()
         logger.debug(
             "[Planner] Arena raw output='%s', options=%s",
@@ -464,6 +469,7 @@ class ModularPlanner(IPlanner):
             "task_description": current_task_desc
         }
         object_prompt = self._render_prompt("action_game_object.txt", object_prompt_context)
+        logger.debug(f"[Planner] Object prompt =>\n{object_prompt}")
         raw_object = self.model.generate(object_prompt, max_tokens=64).strip()
         logger.debug(
             "[Planner] Object raw output='%s', options=%s",
@@ -646,6 +652,30 @@ class ModularPlanner(IPlanner):
 
         return best_bundle
 
+    def _select_focused_event_from_percepts(self, agent: Agent, perceived_nodes: List[MemoryNode]) -> Optional[Dict[str, List[MemoryNode]]]:
+        """Pick a live perceived event (prefer non-self subjects) to consider for reaction."""
+        try:
+            events: List[Event] = []
+            for n in perceived_nodes:
+                if getattr(n, "node_type", "") != "event":
+                    continue
+                ev = getattr(n, "event", None)
+                if not ev or not ev.subject:
+                    continue
+                if ev.subject == agent.name:
+                    continue
+                events.append(ev)
+
+            if not events:
+                return None
+
+            ev = events[0]
+            logger.info("[Planner] Selected focused live event: %s %s %s", ev.subject, ev.predicate or "is", ev.object or "")
+            return {"current_event": ev, "context_nodes": []}
+        except Exception as e:
+            logger.debug("[Planner] Live percept selection failed: %s", e)
+            return None
+
 
 
     def _decide_reaction(self, agent: Agent, context_bundle: Dict[str, List[MemoryNode]]) -> Optional[str]:
@@ -674,6 +704,7 @@ class ModularPlanner(IPlanner):
         }
 
         prompt = self._render_prompt("should_react_to_event.txt", context)
+        logger.debug(f"[Planner] Reaction prompt =>\n{prompt}")
         response = self.model.generate(prompt, max_tokens=50, stop=["\n", "</reaction>", "User:", "###"])
         reaction = response.strip()
         logger.debug(f"[Planner] Reaction decision: {reaction}")
@@ -690,7 +721,9 @@ class ModularPlanner(IPlanner):
             pass
 
         if reaction_mode.startswith("chat with"):
-            target = event.object or "someone"
+            # Prefer explicit target from the reaction text; otherwise use the event subject
+            target_text = reaction_mode[len("chat with"):].strip()
+            target = target_text or event.subject or event.object or "someone"
             convo = self.chat_manager.generate_conversation(agent, target)
             summary = self.chat_manager.summarize_conversation(agent, convo)
             turns = max(1, len(convo))
@@ -756,4 +789,17 @@ class ModularPlanner(IPlanner):
 
     def _parse_microtasks_text(self, text: str) -> List[str]:
         lines = [l.strip() for l in text.strip().splitlines() if l.strip()]
-        return [re.sub(r"^[\-\*\d\).\s]+", "", l) for l in lines]
+        cleaned: List[str] = []
+        for l in lines:
+            s = l
+            # Drop bullets/numbers
+            s = re.sub(r"^[\u2022•\-\*\d\)\.\s]+", "", s)
+            # Remove time ranges like "HH:MM - HH:MM -" or single "HH:MM:"
+            s = re.sub(r"^(?:\d{1,2}:\d{2}(?::\d{2})?\s*(?:-\s*\d{1,2}:\d{2}(?::\d{2})?)?\s*[-:]?\s*)+", "", s)
+            # Remove stray leading ":MM:" leftovers
+            s = re.sub(r"^:\d{1,2}:\s*", "", s)
+            # Normalize whitespace
+            s = re.sub(r"\s+", " ", s).strip()
+            if s:
+                cleaned.append(s)
+        return cleaned

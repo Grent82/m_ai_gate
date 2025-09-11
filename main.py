@@ -47,7 +47,7 @@ def run_agent():
             # Cleanup any expired action before planning
             executor.cleanup_expired(agent, world)
 
-            plan = planner.plan(agent, world, retrieved)
+            plan = planner.plan(agent, world, retrieved, perceived)
             logger.info(f"Plan for {agent.name}: {plan}")
 
             # Execute a few steps of the plan
