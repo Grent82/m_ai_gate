@@ -8,11 +8,13 @@ Rules:
 - Prefer sectors that directly match the activity (e.g., field work in fields, hunting in forest, trading/eating/serving in tavern, home routines in the agent’s house).
 - Stay in the current sector only if the task clearly fits there.
 - If the task explicitly implies another sector, switch to that sector.
+- Use the agent's role and sex only to break ties when choices are equally plausible; never override the explicit activity.
 - The answer must be one of the provided sectors; do not invent names; do not return empty.
 
 ---
 
 Agent Name: {{ agent.name }}
+Agent Sex: {{ agent.sex }}
 Current sector: {{ current_sector }}
 Current task: {{ task_description }}
 

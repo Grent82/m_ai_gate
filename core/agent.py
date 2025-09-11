@@ -8,7 +8,7 @@ from core.logger import setup_logger
 logger = setup_logger(__name__)
 
 class Agent:
-    def __init__(self, name: str, age: int, traits: Union[str, List[str]], lifestyle: str, position, background: Optional[str] = None, status: Optional[str] = None):
+    def __init__(self, name: str, age: int, traits: Union[str, List[str]], lifestyle: str, position, background: Optional[str] = None, status: Optional[str] = None, sex: Optional[str] = None):
         self.name = name
         self.age = age
         # Store traits as original string and a normalized list for prompts
@@ -22,6 +22,7 @@ class Agent:
         # Profile/identity state (editable by identity revision)
         self.background = background or ""
         self.status = status or ""
+        self.sex = (sex or "").lower()
 
         self.vision_range = 5  # todo
         self.attention_bandwidth: int = 3  # Max number of events agent can attend to
@@ -68,4 +69,5 @@ class Agent:
             "memories": recent_memories,
             "background": self.background,
             "status": self.status,
+            "sex": self.sex,
         }
