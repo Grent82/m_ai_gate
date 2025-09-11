@@ -57,6 +57,8 @@ class Executor(IExecutor):
         if action.event and (action.event.object or "").lower() == "waiting":
             return "waiting"
 
+        path_failed_this_tick = False
+        target = None
         if not action.path.is_set or not action.path.path:
             target = self._select_target_tile(agent, world)
             if target is None:
@@ -68,9 +70,12 @@ class Executor(IExecutor):
             if len(path) <= 1:
                 action.path.path = []
                 action.path.is_set = True
+                action.path.failed = target != agent.position
+                path_failed_this_tick = action.path.failed
             else:
                 action.path.path = path[1:]
                 action.path.is_set = True
+                action.path.failed = False
             logger.debug("[Executor] Planned path len=%d", len(action.path.path))
 
         steps_taken = 0
@@ -82,7 +87,7 @@ class Executor(IExecutor):
             self._move_event_between_tiles(world, prev, agent.position, action.event)
             steps_taken += 1
 
-        if not action.path.path:
+        if not action.path.path and not action.path.failed:
             self._on_arrival(agent, world)
 
         if action.event and (action.event.predicate or "").lower() == "chat with":
@@ -90,6 +95,8 @@ class Executor(IExecutor):
                 return f"chatting with {action.chat.with_whom or 'someone'}"
             return f"moving to {action.event.object or 'someone'} to chat"
 
+        if action.path.failed or path_failed_this_tick:
+            return "path blocked"
         return f"moved {steps_taken} step(s)" if steps_taken else "at destination"
 
     # Internal helpers --------------------------------------------------
@@ -361,6 +368,7 @@ class Executor(IExecutor):
 
         action.path.path.clear()
         action.path.is_set = False
+        action.path.failed = False
         action.chat.with_whom = None
         action.chat.chat_log.clear()
         action.chat.end_time = None

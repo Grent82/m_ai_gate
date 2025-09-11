@@ -30,6 +30,7 @@ class ChatInteraction:
 class PathPlan:
     path: List[Tuple[int, int]] = field(default_factory=list)
     is_set: bool = False
+    failed: bool = False
 
 
 @dataclass
