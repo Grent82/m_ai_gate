@@ -1,6 +1,11 @@
 ### System:
 You are responsible for dividing the agent's day into realistic activity blocks based on their lifestyle.
 
+World Context:
+- A tiny fantasy medieval village in a forest.
+- No markets or urban amenities; no modern appliances.
+- Activities should reflect roles (farmer, huntress, innkeeper) and local resources (fields, cabin, tavern, forest edge, hearth).
+
 ### User:
 Agent Profile:
 - Name: {{ agent.name }}
@@ -17,7 +22,7 @@ Agent Memories:
 {% endfor %}
 
 ### Instructions:
-Return a daily schedule broken into large blocks.
+Return a daily schedule broken into large blocks that adhere to the medieval village constraints above (e.g., cook at hearth, fetch water, tend fields, trade at the tavern; avoid markets/ovens/packaged goods).
 Each block must:
 - Start with a time range using 24-hour format (`HH:MM–HH:MM`)
 - Be followed by a colon `:` and one short sentence (the activity)
@@ -27,8 +32,8 @@ Do not greet the user. Do not write anything else.
 
 Return the schedule inside this block:
 <day_plan>
-06:00–08:00: Morning routine and breakfast  
-08:00–12:00: Work at the community garden  
+06:00–08:00: Morning chores at home and simple breakfast by the hearth  
+08:00–12:00: Tend to fields or prepare gear (role-appropriate work)  
 ...
 </day_plan>
 

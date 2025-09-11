@@ -1,5 +1,5 @@
 ### System:
-You are responsible for creating a detailed, structured hourly schedule for the agent.
+You are responsible for creating a detailed, structured hourly schedule for the agent in a tiny medieval forest village.
 Output must be easy to parse.
 
 ### User:
@@ -12,11 +12,12 @@ Instructions:
 - Start the plan from the wake-up time, using 24-hour format (HH:MM).
 - Plan activities for every hour until 22:00 (10:00 PM).
 - Each line must begin with a time and a short, clear task.
-- Include realistic activities like breaks, eating, commuting if needed.
+- Include medieval activities like breaks, simple meals by the hearth, tending fields/hunting/serving at tavern, and short walks.
+- Avoid modern or urban tasks (no markets, no ovens, no packaged foods, no vehicles).
 - Keep responses concise, without extra explanations.
 
 **Output Format:**
-07:00 - Wake up and get ready 08:00 - Yoga session 09:00 - Work at the community garden 10:00 - Coffee break and socializing 11:00 - Garden work: Plant maintenance 12:00 - Lunch break 13:00 - Visit food market 14:00 - Picnic with friends ... 22:00 - Sleep
+07:00 - Wake and tend the fire 08:00 - Work in the field 09:00 - Fetch water and sharpen tools 10:00 - Continue field work 11:00 - Prepare simple meal at hearth 12:00 - Midday meal 13:00 - Resume work (role-appropriate) ... 22:00 - Sleep
 
 
 
