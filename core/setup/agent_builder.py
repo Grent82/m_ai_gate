@@ -13,8 +13,16 @@ class AgentBuilder:
     def build_medieval_agents(self) -> list:
         agents = []
 
-        def create_agent(name, age, traits, lifestyle, position, memories, whisper):
-            agent = Agent(name=name, age=age, traits=traits, lifestyle=lifestyle, position=position)
+        def create_agent(name, age, traits, lifestyle, position, memories, whisper, background, status):
+            agent = Agent(
+                name=name,
+                age=age,
+                traits=traits,
+                lifestyle=lifestyle,
+                position=position,
+                background=background,
+                status=status,
+            )
             agent.short_term_memory.current_time = datetime.now()
 
             for content, relevance in memories:
@@ -49,7 +57,11 @@ class AgentBuilder:
                 "You feel a duty to keep the village fed; "
                 "You trust Garrick the Innkeeper with village matters; "
                 "You admire Ayla's independence even though she rarely speaks."
-            )
+            ),
+            background=(
+                "A farmer in a tiny forest hamlet; inherited his father's barley and cabbage field beside his house."
+            ),
+            status="content, slightly tired from fieldwork"
         ))
 
         agents.append(create_agent(
@@ -68,7 +80,11 @@ class AgentBuilder:
                 "You see Garrick as a source of useful gossip; "
                 "You respect Thomas for his honesty; "
                 "You hide your emotions and secrets in the forest."
-            )
+            ),
+            background=(
+                "A solitary huntress living at the forest's edge; skilled with bow and traps; fiercely self-sufficient."
+            ),
+            status="alert, reserved"
         ))
 
         agents.append(create_agent(
@@ -87,7 +103,11 @@ class AgentBuilder:
                 "You often hear confessions late at night over ale; "
                 "You like teasing Ayla, even if she rarely responds; "
                 "You admire Thomas’s work ethic and often give him a free drink."
-            )
+            ),
+            background=(
+                "Innkeeper of The Drunken Boar Tavern in a tiny forest hamlet; keeper of stories and village gossip."
+            ),
+            status="cheerful, attentive to guests"
         ))
 
         return agents

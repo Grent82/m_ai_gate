@@ -1,4 +1,4 @@
-from typing import Optional, Set, Tuple
+from typing import Optional, Set, Tuple, List, Union
 from core.agent_action import AgentAction, Event
 from memory.long_term_memory import LongTermMemory
 from memory.short_term_memory import ShortTermMemory
@@ -8,18 +8,20 @@ from core.logger import setup_logger
 logger = setup_logger(__name__)
 
 class Agent:
-    def __init__(self, name: str, age: int, traits: str, lifestyle: str, position):
+    def __init__(self, name: str, age: int, traits: Union[str, List[str]], lifestyle: str, position, background: Optional[str] = None, status: Optional[str] = None):
         self.name = name
         self.age = age
-        self.traits = traits
+        # Store traits as original string and a normalized list for prompts
+        self.traits = traits if isinstance(traits, str) else ", ".join(traits)
+        self._traits_list: List[str] = (
+            [t.strip() for t in traits.split(",") if t.strip()] if isinstance(traits, str) else [t.strip() for t in traits]
+        )
         self.position = position
         self.lifestyle = lifestyle
 
         # Profile/identity state (editable by identity revision)
-        self.background = (
-            "Grew up in a small village and moved to Town Square to explore urban life"
-        )
-        self.status = "energetic, slightly hungry"
+        self.background = background or ""
+        self.status = status or ""
 
         self.vision_range = 5  # todo
         self.attention_bandwidth: int = 3  # Max number of events agent can attend to
@@ -59,7 +61,8 @@ class Agent:
         return {
             "name": self.name,
             "age": self.age,
-            "traits": self.traits,
+            "traits": self.traits,  # printable string for most prompts
+            "traits_list": self._traits_list,  # list form for prompts that want join
             "lifestyle": self.lifestyle,
             "location": location,
             "memories": recent_memories,

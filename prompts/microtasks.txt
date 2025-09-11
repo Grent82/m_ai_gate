@@ -12,7 +12,7 @@ World Context:
 Agent Profile:
 - Name: {{ agent.name }}
 - Age: {{ agent.age }}
-- Traits: {{ agent.traits | join(", ") }}
+- Traits: {{ agent.traits_list | join(", ") }}
 - Current Status: {{ agent.status }}
 
 Agent Location: {{ agent.location }}
