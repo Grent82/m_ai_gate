@@ -96,7 +96,7 @@ class AgentBuilder:
             age=52,
             traits="jovial, talkative, wise",
             lifestyle="Wakes late, cleans the tavern, chats with guests, and enjoys telling stories in the evening.",
-            position=(6, 11),
+            position=(6, 10),
             memories=[
                 ("Owns The Drunken Boar Tavern in the village center.", 7),
                 ("Knows many rumors and secrets of the village.", 6),

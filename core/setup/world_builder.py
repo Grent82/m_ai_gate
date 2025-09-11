@@ -8,7 +8,7 @@ class WorldBuilder:
         pass
 
     def setup_medieval_village_world(self) -> World:
-        world = World(name="MedievalVillage", description="A small medieval hamlet with two houses, a tavern, a field and a forest", width=20, height=20)
+        world = World(name="MedievalVillage", description="A small medieval hamlet with two houses, a tavern, a field and a forest", width=30, height=24)
         tiles = world.tile_manager
         for x in range(world.tile_manager.width):
             for y in range(world.tile_manager.height):
@@ -62,8 +62,6 @@ class WorldBuilder:
                         tiles.set_game_object(x, y, "floor")
                         tiles.set_collision(x, y, False)
 
-            # Object collision semantics: items you use (bed, bench, chair) remain passable;
-            # bulky fixtures block movement.
             passable_furniture = {"bed", "bench", "chair"}
             blocking_objects = {
                 "table",
@@ -84,35 +82,35 @@ class WorldBuilder:
 
         # House 1 – Farmer
         build_room(
-            1, 1, 5, 5,
+            1, 1, 6, 6,
             sector="Farmer's House",
             arena="Main Room",
             objects=[
                 (2, 2, "bed"),
-                (3, 2, "fireplace"),
+                (4, 2, "fireplace"),
                 (2, 3, "table"),
-                (3, 3, "crate")
+                (4, 4, "crate")
             ],
             doors=[(3, 1)]  # north door
         )
 
         # House 2 – Hunter
         build_room(
-            8, 1, 12, 5,
+            8, 1, 14, 6,
             sector="Hunter's Cabin",
             arena="Main Room",
             objects=[
                 (9, 2, "bed"),
-                (10, 2, "fireplace"),
+                (11, 2, "fireplace"),
                 (9, 3, "wooden chest"),
-                (10, 3, "workbench")
+                (11, 3, "workbench")
             ],
             doors=[(10, 1)]  # north door
         )
 
         # Tavern
         build_room(
-            4, 8, 10, 13,
+            4, 8, 12, 16,
             sector="The Drunken Boar Tavern",
             arena="Tavern Hall",
             objects=[
@@ -122,23 +120,22 @@ class WorldBuilder:
                 (7, 11, "bench"),
                 (8, 11, "bench"),
                 (6, 12, "fireplace"),
-                (9, 12, "bed")  # bed for innkeeper
+                (9, 12, "bed")
             ],
             doors=[(7, 8)]  # north door
         )
 
         # Add field area (next to farmer's house)
-        for x in range(1, 6):
-            # Limit to y=6..7 to avoid overlapping the tavern's top wall at y=8
-            for y in range(6, 8):
+        for x in range(1, 7):
+            for y in range(7, 8):
                 tiles.set_sector(x, y, "Farmer's Field")
                 tiles.set_arena(x, y, "Wheat Patch")
                 tiles.set_game_object(x, y, "wheat" if (x + y) % 2 == 0 else "soil")
                 tiles.set_collision(x, y, False)
 
         # Add forest area (near hunter’s cabin)
-        for x in range(13, 18):
-            for y in range(1, 6):
+        for x in range(16, 26):
+            for y in range(1, 9):
                 tiles.set_sector(x, y, "Forest Edge")
                 tiles.set_arena(x, y, "Hunting Grounds")
                 obj = "tree" if (x + y) % 2 == 0 else "bush"
@@ -146,7 +143,6 @@ class WorldBuilder:
                 # Trees are collidable, bushes are passable
                 tiles.set_collision(x, y, obj == "tree")
 
-        # Add simple gravel paths to make movement easier/preferred
         def lay_gravel_path(points: List[Tuple[int, int]]):
             for (px, py) in points:
                 if not (0 <= px < tiles.width and 0 <= py < tiles.height):
@@ -159,14 +155,15 @@ class WorldBuilder:
                 tiles.set_game_object(px, py, "gravel")
                 tiles.set_collision(px, py, False)
 
-        # Connect both house entrances to tavern via a T-shaped path
         gravel_points = set()
-        # Top horizontal from farmer (x=3) to hunter (x=10) along y=0, centered at x=7
         for x in range(3, 11):
             gravel_points.add((x, 0))
-        # Vertical down from x=7 (center) to just before the tavern door at (7,8)
-        for y in range(0, 8):  # stop at y=7 to avoid overwriting the door at y=8
+        for y in range(0, 8):
             gravel_points.add((7, y))
+        for x in range(2, 28):
+            gravel_points.add((x, 2))
+        for y in range(2, 20):
+            gravel_points.add((15, y))
         lay_gravel_path(sorted(gravel_points))
 
         return world
