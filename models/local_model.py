@@ -32,11 +32,13 @@ class LocalModel:
             verbose=False,
         )
 
-    def generate(self, prompt: str, max_tokens: int = 256, stop: list = None) -> str:
+    def generate(self, prompt: str, max_tokens: int = 256, stop: list = None, temperature: float = 0.7, top_p: float = 0.9) -> str:
         result = self.llm(
             prompt=prompt,
             max_tokens=max_tokens,
-            stop=stop or ["</s>", "User:", "###"]
+            stop=stop or ["</s>", "User:", "###"],
+            temperature=temperature,
+            top_p=top_p,
         )
         logger.debug("Raw LLM output:\n%s", pprint.pformat(result))
         return result["choices"][0]["text"].strip()

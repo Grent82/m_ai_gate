@@ -12,7 +12,8 @@ Rules:
 ---
 
 Current task: {{ task_description }}
-Available objects: {{ available_objects | join(", ") }}
 
-Pick ONE object from the list that fits this task best.
-Return ONLY the object name (exactly as listed), with no extra text.
+OPTIONS (objects):
+{{ available_objects | join("\n") }}
+
+Return EXACTLY one item from OPTIONS on a single line, with no quotes or extra text.

@@ -12,9 +12,10 @@ Rules:
 ---
 
 Agent: {{ agent.name }}
-Current sector: {{ sector }}
-Available arenas in this sector: {{ available_arenas | join(", ") }}
+Chosen sector: {{ sector }}
 Current task: {{ task_description }}
 
-Which ONE arena from the list is best for this task?
-Return ONLY the arena name (exactly as listed), with no extra text.
+OPTIONS (arenas):
+{{ available_arenas | join("\n") }}
+
+Return EXACTLY one item from OPTIONS on a single line, with no quotes or extra text.

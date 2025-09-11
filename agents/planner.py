@@ -370,7 +370,13 @@ class ModularPlanner(IPlanner):
         }
         sector_prompt = self._render_prompt("action_sector.txt", sector_prompt_context)
         logger.debug(f"[Planner] Sector prompt =>\n{sector_prompt}")
-        raw_sector = self.model.generate(sector_prompt, max_tokens=64).strip()
+        raw_sector = self.model.generate(
+            sector_prompt,
+            max_tokens=32,
+            stop=["\n", "User:", "###"],
+            temperature=0.1,
+            top_p=0.5,
+        ).strip()
         logger.debug(
             "[Planner] Sector raw output='%s', options=%s, current='%s'",
             raw_sector,
@@ -414,7 +420,13 @@ class ModularPlanner(IPlanner):
         }
         arena_prompt = self._render_prompt("action_arena.txt", arena_prompt_context)
         logger.debug(f"[Planner] Arena prompt =>\n{arena_prompt}")
-        raw_arena = self.model.generate(arena_prompt, max_tokens=64).strip()
+        raw_arena = self.model.generate(
+            arena_prompt,
+            max_tokens=32,
+            stop=["\n", "User:", "###"],
+            temperature=0.1,
+            top_p=0.5,
+        ).strip()
         logger.debug(
             "[Planner] Arena raw output='%s', options=%s",
             raw_arena,
@@ -462,23 +474,38 @@ class ModularPlanner(IPlanner):
         if not default_object:
             default_object = available_objects[0] if available_objects else "floor"
 
+        # Improve options fed to the LLM by filtering structural items when possible
+        non_structural_objects = [o for o in available_objects if o not in structural]
+        object_options_for_prompt = non_structural_objects or available_objects
+        logger.debug(
+            "[Planner] Object options (filtered=%s): %s",
+            bool(non_structural_objects),
+            object_options_for_prompt,
+        )
+
         object_prompt_context = {
             "agent": agent.get_state(),
             "arena": arena,
-            "available_objects": available_objects,
+            "available_objects": object_options_for_prompt,
             "task_description": current_task_desc
         }
         object_prompt = self._render_prompt("action_game_object.txt", object_prompt_context)
         logger.debug(f"[Planner] Object prompt =>\n{object_prompt}")
-        raw_object = self.model.generate(object_prompt, max_tokens=64).strip()
+        raw_object = self.model.generate(
+            object_prompt,
+            max_tokens=32,
+            stop=["\n", "User:", "###"],
+            temperature=0.1,
+            top_p=0.5,
+        ).strip()
         logger.debug(
             "[Planner] Object raw output='%s', options=%s",
             raw_object,
-            available_objects,
+            object_options_for_prompt,
         )
         game_object = self._pick_from_options(
             raw_object,
-            available_objects,
+            object_options_for_prompt,
             default_object,
         )
 
@@ -705,7 +732,13 @@ class ModularPlanner(IPlanner):
 
         prompt = self._render_prompt("should_react_to_event.txt", context)
         logger.debug(f"[Planner] Reaction prompt =>\n{prompt}")
-        response = self.model.generate(prompt, max_tokens=50, stop=["\n", "</reaction>", "User:", "###"])
+        response = self.model.generate(
+            prompt,
+            max_tokens=32,
+            stop=["\n", "</reaction>", "User:", "###"],
+            temperature=0.1,
+            top_p=0.5,
+        )
         reaction = response.strip()
         logger.debug(f"[Planner] Reaction decision: {reaction}")
         return reaction if reaction else None

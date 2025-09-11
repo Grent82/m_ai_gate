@@ -13,8 +13,10 @@ Rules:
 ---
 
 Agent Name: {{ agent.name }}
-All available sectors in this world: {{ available_sectors | join(", ") }}
 Current sector: {{ current_sector }}
 Current task: {{ task_description }}
 
-Return ONLY the exact sector name from the list above (no extra text).
+OPTIONS (sectors):
+{{ available_sectors | join("\n") }}
+
+Return EXACTLY one item from OPTIONS on a single line, with no quotes or extra text.
