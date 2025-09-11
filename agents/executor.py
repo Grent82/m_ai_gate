@@ -191,6 +191,7 @@ class Executor(IExecutor):
         try:
             if tm.is_collidable(bx, by):
                 target_tile = tm.get_tile(bx, by)
+                # Prefer immediate neighbors in same arena
                 for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                     nx, ny = bx + dx, by + dy
                     if not tm.is_within_bounds(nx, ny):
@@ -200,6 +201,14 @@ class Executor(IExecutor):
                     t2 = tm.get_tile(nx, ny)
                     if t2.sector == target_tile.sector and t2.arena == target_tile.arena:
                         return (nx, ny)
+                # Deterministic nearest fallback: any non-collidable tile in same arena, nearest to target
+                try:
+                    same_arena = tm.find_positions(sector=target_tile.sector, arena=target_tile.arena)
+                    if same_arena:
+                        best_near_target = min(same_arena, key=lambda p: (p[0] - bx) ** 2 + (p[1] - by) ** 2)
+                        return best_near_target
+                except Exception:
+                    pass
                 return best
         except Exception:
             pass
