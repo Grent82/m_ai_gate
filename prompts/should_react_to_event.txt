@@ -14,9 +14,9 @@ You are a decision-making module that determines whether the agent should respon
 
 ### Instructions:
 Decide what the agent should do in response.
-Return only one of:
- - chat with {{ event.subject }}
-- wait
-- ignore
+Return exactly one of the following options, with no extra text:
+chat with {{ event.subject }}
+wait
+ignore
 
-</reaction>
+### Assistant:

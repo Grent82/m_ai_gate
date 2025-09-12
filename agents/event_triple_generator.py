@@ -1,4 +1,5 @@
 from typing import List, Tuple
+import re
 
 from jinja2 import Environment, FileSystemLoader
 from core.agent_action import Event
@@ -26,14 +27,44 @@ class EventTripleGenerator:
         response = self.model.generate(prompt, max_tokens=200, stop=["###", "</event>"])
         logger.debug(f"[EventTriple] Response: {response}")
 
-        lines = response.strip().splitlines()
-        triples = []
-        for line in lines:
-            if line.startswith("(") and line.endswith(")"):
-                parts = line.strip("() ").split(",")
-                if len(parts) == 3:
-                    s, p, o = [part.strip().strip('"') for part in parts]
+        triples: List[Tuple[str, str, str]] = []
+
+        # Extract any parenthesized tuple-like content anywhere in the text
+        for m in re.finditer(r"\(([^)]+)\)", response):
+            inner = m.group(1).strip()
+            if inner.lower().startswith("note:"):
+                continue
+            parts = [p.strip().strip('"') for p in inner.split(",")]
+            if len(parts) >= 3:
+                s = parts[0]
+                p = parts[1]
+                o = ",".join(parts[2:]).strip()
+                if s and p and o:
                     triples.append((s, p, o))
+                continue
+            if len(parts) == 2:
+                s, rest = parts
+                tokens = rest.split()
+                if len(tokens) >= 2:
+                    p = tokens[0]
+                    o = " ".join(tokens[1:])
                 else:
-                    logger.warning(f"[EventTriple] Malformed triple: {line}")
+                    p = "is"
+                    o = rest
+                if s and p and o:
+                    triples.append((s, p, o))
+
+        # Fallback: key-value block format
+        if not triples:
+            try:
+                subj = re.search(r"^\s*subject\s*:\s*(.+)$", response, re.IGNORECASE | re.MULTILINE)
+                pred = re.search(r"^\s*predicate\s*:\s*(.+)$", response, re.IGNORECASE | re.MULTILINE)
+                obj = re.search(r"^\s*object\s*:\s*(.+)$", response, re.IGNORECASE | re.MULTILINE)
+                if subj and pred and obj:
+                    s = subj.group(1).strip().strip('"')
+                    p = pred.group(1).strip().strip('"')
+                    o = obj.group(1).strip().strip('"')
+                    triples.append((s, p, o))
+            except Exception:
+                pass
         return triples

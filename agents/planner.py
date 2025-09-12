@@ -181,10 +181,30 @@ class ModularPlanner(IPlanner):
 
     def get_tile_actions(self, world: World, agent: Agent) -> str:
         logger.info(f"[Planner] Generating actions for tile...")
-        location = world.tile_manager.get_nearby_tiles_positions(agent.position)
+        tm = world.tile_manager
+        nearby = tm.get_nearby_tiles_positions(agent.position)
+        events_text: List[str] = []
+        try:
+            for (x, y) in nearby:
+                try:
+                    t = tm.get_tile(x, y)
+                except Exception:
+                    continue
+                for ev in getattr(t, "events", []) or []:
+                    desc = getattr(ev, "description", None)
+                    if desc:
+                        events_text.append(desc)
+                    else:
+                        subj = getattr(ev, "subject", "?")
+                        pred = getattr(ev, "predicate", "is") or "is"
+                        obj = getattr(ev, "object", "") or ""
+                        events_text.append(f"{subj} {pred} {obj}".strip())
+        except Exception:
+            pass
+
         context = {
             "agent": agent.get_state(),
-            "tile": location
+            "tile": {"events": events_text},
         }
         prompt = self._render_prompt("tile_actions.txt", context)
         response = self.model.generate(prompt, max_tokens=150)
@@ -756,12 +776,19 @@ class ModularPlanner(IPlanner):
 
         prompt = self._render_prompt("should_react_to_event.txt", context)
         logger.debug(f"[Planner] Reaction prompt =>\n{prompt}")
+        allowed = [
+            f"chat with {event.subject}",
+            *( [f"chat with {event.object}"] if event.object else [] ),
+            "wait",
+            "ignore",
+        ]
         response = self.model.generate(
             prompt,
-            max_tokens=32,
-            stop=["</reaction>", "User:", "###"],
-            temperature=0.2,
-            top_p=0.6,
+            max_tokens=16,
+            stop=["\n", "User:", "###"],
+            temperature=0.0,
+            top_p=0.5,
+            allowed_strings=allowed,
         )
         reaction = response.strip()
         logger.debug(f"[Planner] Reaction decision: {reaction}")

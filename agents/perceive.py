@@ -136,7 +136,7 @@ class Perception:
                 action_event = short_term.action.event
 
                 if not action_event or not action_event.description:
-                    logger.warning("[Perception] No valid action event or description found.")
+                    logger.debug("[Perception] No valid action event or description found.")
                     return None
                 
                 keywords = self._extract_keywords(event.subject, event.object)
@@ -167,6 +167,8 @@ class Perception:
         nodes: List[MemoryNode] = []
         for event in events:
             if event in latest_events:
+                continue
+            if not event.description or event.description.strip().lower() == "idle":
                 continue
             
             logger.debug(f"[Perception] Storing percepts for event='{event}' and chat node is: '{chat_node_ids}'")
