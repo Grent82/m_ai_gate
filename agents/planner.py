@@ -779,6 +779,9 @@ class ModularPlanner(IPlanner):
         allowed = [
             f"chat with {event.subject}",
             *( [f"chat with {event.object}"] if event.object else [] ),
+            "observe",
+            "help",
+            "follow",
             "wait",
             "ignore",
         ]
@@ -821,6 +824,20 @@ class ModularPlanner(IPlanner):
             agent.short_term_memory.action.event = Event(agent.name, "chat with", target, summary)
             agent.short_term_memory.action.duration = minutes
             agent.short_term_memory.action.start(now)
+
+            # Minimal symmetric chat state on the target agent
+            try:
+                target_agent = next((a for a in world.agents if a.name == target), None)
+                if target_agent is not None:
+                    target_agent.short_term_memory.action.chat.with_whom = agent.name
+                    # Share the same initial convo context
+                    target_agent.short_term_memory.action.chat.chat_log = [[s, u] for s, u in convo]
+                    target_agent.short_term_memory.action.description = f"heading to chat with {agent.name}"
+                    target_agent.short_term_memory.action.event = Event(target_agent.name, "chat with", agent.name, summary)
+                    target_agent.short_term_memory.action.duration = minutes
+                    target_agent.short_term_memory.action.start(now)
+            except Exception:
+                pass
 
         elif reaction_mode.startswith("wait"):
             agent.short_term_memory.action.description = "waiting quietly"
