@@ -1,4 +1,5 @@
 from typing import List
+import re
 from jinja2 import Environment, FileSystemLoader
 from models.local_model import LocalModel
 from core.logger import setup_logger
@@ -26,6 +27,7 @@ class ChatManager:
                 continue
             speaker, utterance = line.split(":", 1)
             convo.append([speaker.strip(), utterance.strip()])
+            logger.debug(f"[Chat] Line => {speaker.strip()}: {utterance.strip()}")
         logger.debug(f"[Chat] Generated {len(convo)} convo lines.")
         return convo[: max_turns]
 
@@ -37,5 +39,9 @@ class ChatManager:
         }
         prompt = self.env.get_template("summarize_conversation.txt").render(context)
         summary = self.model.generate(prompt, max_tokens=120, stop=["\n", "</summary>", "###"]).strip()
+        try:
+            summary = re.sub(r"^(?:answer|summary|response)\s*:\s*", "", summary, flags=re.IGNORECASE).strip()
+            logger.debug(f"[Chat] Summary => {summary}")
+        except Exception:
+            pass
         return summary
-

@@ -52,8 +52,6 @@ class Executor(IExecutor):
             logger.debug("[Executor] No active action; agent is idle.")
             return "idle"
 
-        self._attach_event_to_current_tile(agent, world)
-
         if action.event and (action.event.object or "").lower() == "waiting":
             return "waiting"
 
@@ -157,11 +155,27 @@ class Executor(IExecutor):
             return agent.position
 
         event = agent.short_term_memory.action.event
-        if event and event.object:
+        if event and (event.predicate or "").lower() == "chat with" and event.object:
             for other in world.agents:
                 if other is agent:
                     continue
                 if other.name == event.object:
+                    tx, ty = other.position
+                    occupied = {a.position for a in world.agents}
+                    candidates_adj = []
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        nx, ny = tx + dx, ty + dy
+                        if not tm.is_within_bounds(nx, ny):
+                            continue
+                        if tm.is_collidable(nx, ny):
+                            continue
+                        if (nx, ny) in occupied:
+                            continue
+                        candidates_adj.append((nx, ny))
+                    if candidates_adj:
+                        ax, ay = agent.position
+                        return min(candidates_adj, key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2)
+                    # Fallback: target's tile
                     return other.position
 
         if address and ":" not in address:
@@ -190,9 +204,14 @@ class Executor(IExecutor):
 
         if not candidates:
             return None
+        try:
+            occupied = {a.position for a in world.agents if a is not agent}
+        except Exception:
+            occupied = set()
+        preferred = [p for p in candidates if p not in occupied] or candidates
 
         ax, ay = agent.position
-        best = min(candidates, key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2)
+        best = min(preferred, key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2)
 
         bx, by = best
         try:

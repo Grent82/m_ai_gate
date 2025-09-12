@@ -29,7 +29,6 @@ class EventTripleGenerator:
 
         triples: List[Tuple[str, str, str]] = []
 
-        # Extract any parenthesized tuple-like content anywhere in the text
         for m in re.finditer(r"\(([^)]+)\)", response):
             inner = m.group(1).strip()
             if inner.lower().startswith("note:"):
@@ -54,7 +53,6 @@ class EventTripleGenerator:
                 if s and p and o:
                     triples.append((s, p, o))
 
-        # Fallback: key-value block format
         if not triples:
             try:
                 subj = re.search(r"^\s*subject\s*:\s*(.+)$", response, re.IGNORECASE | re.MULTILINE)
