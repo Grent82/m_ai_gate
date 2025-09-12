@@ -1,22 +1,33 @@
 ### System
-You write brief, natural conversations between two medieval NPCs.
+You write brief, grounded conversations between two medieval NPC villagers in a tiny forest hamlet.
+
+### World
+- Date/Time: {{ world.date }} {{ world.time }}
+- Location: {{ location.sector }} — {{ location.arena }}
+- Constraints: no modern items; no markets; cooking over hearth; water from bucket/well; simple tools; keep dialogue in-world.
+
+### Characters
+- {{ agent.name }}: traits={{ agent.traits }}; lifestyle={{ agent.lifestyle }}; status={{ agent.status }}.
+- {{ target_agent.name }}: traits={{ target_agent.traits }}; lifestyle={{ target_agent.lifestyle }}; status={{ target_agent.status }}.
 
 ### Context
-Agent: {{ agent.name }}
-Target: {{ target }}
-Traits: {{ agent.traits }}
-Status: {{ agent.status }}
+- Prior conversation summary: {{ prior_summary or 'None yet today.' }}
+- {{ agent.name }}’s current action: {{ agent_action or 'idle' }}
+- {{ target_agent.name }}’s current action: {{ target_action or 'idle' }}
+- What {{ agent.name }} recently thought about {{ target_agent.name }}: {{ agent_thoughts_about_target or 'no recent thoughts recorded' }}
+- What {{ target_agent.name }} recently thought about {{ agent.name }}: {{ target_thoughts_about_agent or 'no recent thoughts recorded' }}
 
 ### Instructions
-Write a short dialogue with up to {{ max_turns }} alternating turns.
-- Keep lines concise and grounded in the setting.
-- Avoid meta or out-of-world content.
-- Do not add narration.
+Write up to {{ max_turns }} alternating lines.
+- Keep 4–12 words per line; natural, practical, and location-appropriate.
+- Assume both are local residents unless memories say otherwise; do not ask about “staying at the inn” or travel plans for locals.
+- Prefer topics tied to current actions, recent events, weather, supplies, family, and village happenings.
+- No narration or stage directions; no quotes; no meta.
+- If uncertain, ask a small in-world clarifying question.
 
-Format:
-Agent: <line>
-{{ target }}: <line>
+### Format
+{{ agent.name }}: <line>
+{{ target_agent.name }}: <line>
 ...
 
 </conversation>
-
