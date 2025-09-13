@@ -750,7 +750,15 @@ class ModularPlanner(IPlanner):
     def _decide_reaction(self, agent: Agent, context_bundle: Dict[str, List[MemoryNode]]) -> Optional[str]:
         logger.info("[Planner] Deciding whether to react to an event...")
         event = context_bundle["current_event"]
-        memories = [n.event.description for n in context_bundle.get("context_nodes", [])]
+        try:
+            max_prompt_mem = int(os.environ.get("MAX_PROMPT_MEMORIES", "30"))
+        except Exception:
+            max_prompt_mem = 30
+        memories = [
+            n.event.description
+            for n in context_bundle.get("context_nodes", [])
+            if getattr(n, "event", None) and getattr(n.event, "description", None)
+        ][: max(0, max_prompt_mem)]
 
         now = agent.short_term_memory.current_time
         current_desc = (agent.short_term_memory.action.description or "").lower()

@@ -1,4 +1,5 @@
 from typing import Dict, List
+import os
 from datetime import datetime
 import heapq
 from core.logger import setup_logger
@@ -17,23 +18,46 @@ class Retrieval:
         logger.info("[Retrieval] Starting contextual retrieval...")
 
         result = {}
+        try:
+            context_limit = int(os.environ.get("CONTEXT_NODE_LIMIT", "30"))
+        except Exception:
+            context_limit = 30
 
         for node in perceived_nodes:
             description = node.event.description if node.event else "unknown"
             logger.debug(f"[Retrieval] Retrieving context for event: {description}")
 
-            related_nodes = self.long_term_memory.retrieve_relevant_events(node.event)
-            logger.debug(f"[Retrieval] Retrieved {len(related_nodes)} relevant events.")
+            ranked_map = self.retrieve_relevant_nodes([description])
+            ranked_nodes = ranked_map.get(description, [])
+            if ranked_nodes:
+                logger.debug(
+                    "[Retrieval] Ranked %d nodes for '%s' via vector scoring.",
+                    len(ranked_nodes),
+                    description,
+                )
+            else:
+                related_nodes = self.long_term_memory.retrieve_relevant_events(node.event)
+                related_thoughts = self.long_term_memory.retrieve_relevant_thoughts(node.event)
+                combined_nodes = list({n.node_id: n for n in related_nodes + related_thoughts}.values())
+                ranked_nodes = combined_nodes
+                logger.debug(
+                    "[Retrieval] Fallback combined nodes (events+thoughts): %d",
+                    len(ranked_nodes),
+                )
 
-            related_thoughts = self.long_term_memory.retrieve_relevant_thoughts(node.event)
-            logger.debug(f"[Retrieval] Retrieved {len(related_thoughts)} relevant thoughts.")
-
-            combined_nodes = list({n.node_id: n for n in related_nodes + related_thoughts}.values())
-            logger.debug(f"[Retrieval] Combined total unique context nodes: {len(combined_nodes)}")
+            # Cap the number of context nodes to keep prompt size manageable
+            capped_nodes = ranked_nodes[: max(0, context_limit)]
+            if len(ranked_nodes) > len(capped_nodes):
+                logger.debug(
+                    "[Retrieval] Capped context nodes from %d to %d for '%s'",
+                    len(ranked_nodes),
+                    len(capped_nodes),
+                    description,
+                )
 
             result[description] = {
                 "current_event": node.event,
-                "context_nodes": combined_nodes
+                "context_nodes": capped_nodes,
             }
 
         return result

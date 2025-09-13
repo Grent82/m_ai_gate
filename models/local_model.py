@@ -25,9 +25,12 @@ class LocalModel:
                 f"LLM model not found at: {model_path}. Set MODEL_PATH or pass a valid path."
             )
 
+        # Allow overriding context window via env var (default 2048)
+        self.n_ctx = int(os.environ.get("N_CTX", "2048"))
+
         self.llm = Llama(
             model_path=model_path,
-            n_ctx=2048,
+            n_ctx=self.n_ctx,
             n_threads=4,  # ToDo: make configureable: adjust to your CPU
             verbose=False,
         )
@@ -47,6 +50,43 @@ class LocalModel:
         top_p: float = 0.9,
         allowed_strings: list[str] | None = None,
     ) -> str:
+        # Ensure we don't exceed the model context window by
+        # (1) clamping max_tokens and (2) truncating the prompt if needed.
+        try:
+            prompt_tokens = self.llm.tokenize(prompt.encode("utf-8"), add_bos=True)
+            # Reserve at least 1 token for generation
+            safe_max_new = max(1, min(max_tokens, self.n_ctx - 1))
+            if len(prompt_tokens) + safe_max_new > self.n_ctx:
+                # Truncate prompt tokens to fit within context window.
+                max_prompt_tokens = max(1, self.n_ctx - safe_max_new)
+                # Keep both the beginning (instructions) and the tail (most recent details)
+                if max_prompt_tokens <= 512:
+                    head = max_prompt_tokens // 2
+                else:
+                    head = 256
+                tail = max_prompt_tokens - head
+                kept_tokens = prompt_tokens[:head] + prompt_tokens[-tail:]
+                try:
+                    truncated_prompt = self.llm.detokenize(kept_tokens).decode("utf-8", errors="ignore")
+                except Exception:
+                    # Fallback: rough char-based truncation if detokenize isn't available
+                    approx_chars = max(2000, min(len(prompt), 4 * max_prompt_tokens))
+                    truncated_prompt = prompt[: approx_chars // 2] + "\n...\n" + prompt[-(approx_chars // 2) :]
+                logger.debug(
+                    "Truncated prompt to fit context: orig_tokens=%d, new_tokens<=%d, max_new=%d",
+                    len(prompt_tokens),
+                    max_prompt_tokens,
+                    safe_max_new,
+                )
+                prompt = truncated_prompt
+            # Re-clamp max tokens in case prompt changed size significantly
+            prompt_tokens2 = self.llm.tokenize(prompt.encode("utf-8"), add_bos=True)
+            max_tokens = max(1, min(max_tokens, self.n_ctx - max(1, len(prompt_tokens2))))
+        except Exception as e:
+            # If anything goes wrong during token accounting, fall back to provided values
+            logger.debug("Context management fallback due to: %s", e)
+            max_tokens = max(1, min(max_tokens, self.n_ctx // 4))
+
         kwargs = dict(
             prompt=prompt,
             max_tokens=max_tokens,
