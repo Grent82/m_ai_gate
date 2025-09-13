@@ -120,7 +120,7 @@ class Retrieval:
 
     def _is_non_idle(self, node: MemoryNode) -> bool:
         result = not node.event or "idle" not in node.event.description.lower()
-        logger.debug(f"[Retrieval] Node '{node.node_id}' is_non_idle = {result}")
+        #logger.debug(f"[Retrieval] Node '{node.node_id}' is_non_idle = {result}")
         return result
 
     def _top_n(self, d: Dict[str, float], n: int) -> List[str]:
@@ -136,7 +136,7 @@ class Retrieval:
         norm_a = sum(x * x for x in a) ** 0.5
         norm_b = sum(y * y for y in b) ** 0.5
         similarity = dot_product / (norm_a * norm_b) if norm_a and norm_b else 0.0
-        logger.debug(f"[Retrieval] Cosine similarity: {similarity}")
+        #logger.debug(f"[Retrieval] Cosine similarity: {similarity}")
         return similarity
 
     def _normalize_dict(self, values: Dict[str, float], target_min: float = 0.0, target_max: float = 1.0) -> Dict[str, float]:

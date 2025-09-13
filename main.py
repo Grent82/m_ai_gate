@@ -30,9 +30,9 @@ def run_agent():
         world.add_agent(agent)
 
 
-    # Simulate time progression across ticks
-    TICKS = 3600 // 5
     TICK_MINUTES = 5
+    #TICKS = 7200 // TICK_MINUTES
+    TICKS = 100800 // TICK_MINUTES
     for tick in range(TICKS):
         logger.info(f"=== Tick {tick + 1}/{TICKS} @ {world.current_time.strftime('%H:%M')} ===")
         for agent in agents:
