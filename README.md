@@ -84,7 +84,9 @@ Example:
 
 ```
 export MODEL_PATH=/models/DarkIdol-Llama-3.1-8B-Instruct-1.2-Q4_K_M.gguf
-export N_CTX=4096
+export N_CTX=2048          # 2048 is a safe default for CPU
+export N_THREADS=8         # tune to your CPU cores
+export N_GPU_LAYERS=32     # optional: offload layers if llama-cpp was built with GPU (Metal/CUDA)
 ```
 
 ## Running the Game
