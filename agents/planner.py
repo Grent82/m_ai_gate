@@ -639,8 +639,6 @@ class ModularPlanner(IPlanner):
             options,
         )
         return chosen
-
-
     def _get_current_task_from_schedule(self, agent: Agent) -> Tuple[str, int]:
         """
         Determine the current task and remaining duration using the hourly schedule
@@ -808,16 +806,42 @@ class ModularPlanner(IPlanner):
             pass
 
         if reaction_mode.startswith("chat with"):
-            # Prefer explicit target from the reaction text; otherwise use the event subject
             target_text = reaction_mode[len("chat with"):].strip()
             target = target_text or event.subject or event.object or "someone"
-            convo = self.chat_manager.generate_conversation(agent, target)
+            convo = self.chat_manager.generate_conversation(agent, world, target)
             summary = self.chat_manager.summarize_conversation(agent, convo)
             turns = max(1, len(convo))
             minutes = max(5, min(20, (turns + 1) // 2))
 
             agent.short_term_memory.action.chat.with_whom = target
             agent.short_term_memory.action.chat.chat_log = [[s, u] for s, u in convo]
+
+            meeting_addr = None
+            try:
+                tm = world.tile_manager
+                initiator_pos = agent.position
+                target_agent = next((a for a in world.agents if a.name == target), None)
+                if target_agent is not None:
+                    tx, ty = target_agent.position
+                    occupied = {a.position for a in world.agents}
+                    candidates_adj = []
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        nx, ny = tx + dx, ty + dy
+                        if not tm.is_within_bounds(nx, ny):
+                            continue
+                        if tm.is_collidable(nx, ny):
+                            continue
+                        if (nx, ny) in occupied:
+                            continue
+                        candidates_adj.append((nx, ny))
+                    if candidates_adj:
+                        mx, my = min(candidates_adj, key=lambda p: (p[0] - initiator_pos[0]) ** 2 + (p[1] - initiator_pos[1]) ** 2)
+                    else:
+                        mx, my = tx, ty
+                    meeting_addr = f"<waiting> {mx} {my}"
+                    agent.short_term_memory.action.address = meeting_addr
+            except Exception:
+                meeting_addr = None
 
             # Do not start the timer yet; executor will start it upon arrival
             agent.short_term_memory.action.description = f"heading to chat with {target}"
@@ -836,6 +860,8 @@ class ModularPlanner(IPlanner):
                     target_agent.short_term_memory.action.event = Event(target_agent.name, "chat with", agent.name, summary)
                     target_agent.short_term_memory.action.duration = minutes
                     target_agent.short_term_memory.action.start(now)
+                    if meeting_addr:
+                        target_agent.short_term_memory.action.address = meeting_addr
             except Exception:
                 pass
 

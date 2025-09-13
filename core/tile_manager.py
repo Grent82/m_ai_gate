@@ -27,6 +27,9 @@ class TileManager:
             for _ in range(width)
         ]
         # todo, obstacles
+        # Address index cache for fast address -> positions lookup (non-collidable only)
+        self._address_index: dict[str, list[tuple[int, int]]] = {}
+        self._addr_index_dirty: bool = True
 
     def get_tile(self, x: int, y: int) -> Tile:
         """
@@ -101,14 +104,17 @@ class TileManager:
     def set_sector(self, x: int, y: int, sector: str) -> None:
         """Sets the sector for a specific tile."""
         self.get_tile(x, y).sector = sector
+        self._addr_index_dirty = True
 
     def set_arena(self, x: int, y: int, arena: str) -> None:
         """Sets the arena for a specific tile."""
         self.get_tile(x, y).arena = arena
+        self._addr_index_dirty = True
 
     def set_game_object(self, x: int, y: int, game_object: str) -> None:
         """Sets the game object for a specific tile."""
         self.get_tile(x, y).game_object = game_object
+        self._addr_index_dirty = True
 
     def set_collision(self, x: int, y: int, collision: bool) -> None:
         """Sets the collision status for a specific tile."""
@@ -166,24 +172,35 @@ class TileManager:
 
     def find_positions_by_address(self, address: str) -> List[Tuple[int, int]]:
         """
-        Parse an address in the form 'world:sector:arena:object' and find positions.
+        Fast lookup of positions for an exact address string of the form:
+        'world:sector', 'world:sector:arena', or 'world:sector:arena:object'.
 
-        The world name is ignored (this manager already knows its world).
-        Missing parts are treated as wildcards.
+        Only non-collidable tiles are indexed. The world name is included but
+        implicitly matches this manager.
         """
-        parts = [p.strip() for p in address.split(":")]
-        # Expected formats:
-        # [world]
-        # [world, sector]
-        # [world, sector, arena]
-        # [world, sector, arena, object]
-        sector = None
-        arena = None
-        obj = None
-        if len(parts) >= 2:
-            sector = parts[1] or None
-        if len(parts) >= 3:
-            arena = parts[2] or None
-        if len(parts) >= 4:
-            obj = parts[3] or None
-        return self.find_positions(sector=sector, arena=arena, game_object=obj)
+        if self._addr_index_dirty:
+            self._rebuild_address_index()
+        return list(self._address_index.get(address, []))
+
+    def _rebuild_address_index(self) -> None:
+        idx: dict[str, list[tuple[int, int]]] = {}
+        w = self.world_name
+        for x in range(self.width):
+            for y in range(self.height):
+                t = self.tiles[x][y]
+                if t.is_collidable():
+                    continue
+                sec = t.sector
+                arn = t.arena
+                obj = t.game_object
+                if sec:
+                    key2 = f"{w}:{sec}"
+                    idx.setdefault(key2, []).append((x, y))
+                if sec and arn:
+                    key3 = f"{w}:{sec}:{arn}"
+                    idx.setdefault(key3, []).append((x, y))
+                if sec and arn and obj:
+                    key4 = f"{w}:{sec}:{arn}:{obj}"
+                    idx.setdefault(key4, []).append((x, y))
+        self._address_index = idx
+        self._addr_index_dirty = False

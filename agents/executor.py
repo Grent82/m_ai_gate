@@ -70,6 +70,14 @@ class Executor(IExecutor):
                 action.path.is_set = True
                 action.path.failed = target != agent.position
                 path_failed_this_tick = action.path.failed
+                reason = "already at target" if target == agent.position else "no path to target"
+                logger.debug(
+                    "[Executor] Planned path len=0 (%s): start=%s target=%s address='%s'",
+                    reason,
+                    agent.position,
+                    target,
+                    action.address,
+                )
             else:
                 action.path.path = path[1:]
                 action.path.is_set = True
@@ -206,9 +214,26 @@ class Executor(IExecutor):
             return None
         try:
             occupied = {a.position for a in world.agents if a is not agent}
+            persona_names = {a.name for a in world.agents}
         except Exception:
             occupied = set()
-        preferred = [p for p in candidates if p not in occupied] or candidates
+            persona_names = set()
+
+        def tile_has_persona_event(pos: tuple[int, int]) -> bool:
+            try:
+                t = tm.get_tile(pos[0], pos[1])
+                for ev in getattr(t, "events", []) or []:
+                    if ev and getattr(ev, "subject", None) in persona_names:
+                        return True
+            except Exception:
+                pass
+            return False
+
+        preferred = [p for p in candidates if p not in occupied and not tile_has_persona_event(p)]
+        if not preferred:
+            preferred = [p for p in candidates if p not in occupied]
+        if not preferred:
+            preferred = candidates
 
         ax, ay = agent.position
         best = min(preferred, key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2)
