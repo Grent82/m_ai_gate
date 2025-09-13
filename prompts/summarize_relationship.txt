@@ -1,0 +1,17 @@
+### System
+Characterize the relationship between two medieval NPCs based on prior memories and interactions.
+
+### Characters
+- {{ agent.name }}: traits={{ agent.traits }}; lifestyle={{ agent.lifestyle }}; status={{ agent.status }}.
+- {{ target_agent.name }}: traits={{ target_agent.traits }}; lifestyle={{ target_agent.lifestyle }}; status={{ target_agent.status }}.
+
+### Evidence
+Statements:
+{{ statements }}
+
+### Instructions
+- Write one concise line capturing how {{ agent.name }} and {{ target_agent.name }} relate (e.g., friendly acquaintances, wary respect, tense rivals, budding romance, distant strangers).
+- Base it only on the statements; avoid speculation beyond them.
+- Do not include quotes, labels, or extra commentary.
+
+</summary>

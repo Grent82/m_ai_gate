@@ -13,6 +13,7 @@ You write brief, grounded conversations between two medieval NPC villagers in a 
 
 ### Context
 - Prior conversation summary: {{ prior_summary or 'None yet today.' }}
+{% if relationship %}- Relationship: {{ relationship }}{% endif %}
 {% if last_chat_time %}- Last chatted at: {{ last_chat_time }}{% endif %}
 {% if last_chat_excerpt %}- Last chat excerpt:\n{{ last_chat_excerpt }}{% endif %}
 - {{ agent.name }}’s current action: {{ agent_action or 'idle' }}

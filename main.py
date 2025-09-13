@@ -31,8 +31,8 @@ def run_agent():
 
 
     TICK_MINUTES = 5
-    #TICKS = 7200 // TICK_MINUTES
-    TICKS = 100800 // TICK_MINUTES
+    TICKS = 3600 // TICK_MINUTES
+    #TICKS = 100800 // TICK_MINUTES
     for tick in range(TICKS):
         logger.info(f"=== Tick {tick + 1}/{TICKS} @ {world.current_time.strftime('%H:%M')} ===")
         for agent in agents:
@@ -55,7 +55,7 @@ def run_agent():
             logger.info(f"Plan for {agent.name}: {plan}")
 
             # Execute a few steps of the plan
-            status = executor.execute(agent, world, max_steps=3)
+            status = executor.execute(agent, world, max_steps=2)
             logger.info(f"Execution status for {agent.name}: {status}")
 
             # Perceive again to store the outcome

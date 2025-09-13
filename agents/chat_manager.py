@@ -1,10 +1,12 @@
-from typing import List, Optional
+from typing import List, Optional, Iterable
 import re
 from jinja2 import Environment, FileSystemLoader
 from models.local_model import LocalModel
 from core.logger import setup_logger
 from core.world import World
 from core.agent import Agent
+from core.agent_action import Event
+from models.embeddings import get_embedding
 
 logger = setup_logger(__name__, log_level="DEBUG")
 
@@ -49,6 +51,115 @@ class ChatManager:
             pass
         return "; ".join(thoughts[:limit]) if thoughts else None
 
+    def _gather_relationship_statements(
+        self, agent: Agent, target_agent: Optional[Agent], target_name: str, max_items: int = 12
+    ) -> List[str]:
+        """Collect short statements relevant to the pair's relationship.
+
+        Pulls from both agents' thoughts, events, and past chat summaries.
+        """
+        names = {agent.name.lower(), target_name.lower()}
+
+        def nodes_iter(a: Agent) -> Iterable:
+            for t in ("thought", "event", "chat"):
+                for n in a.long_term_memory.node_sequences.get(t, []):
+                    yield n
+
+        lines: List[str] = []
+
+        def add_line(s: str) -> None:
+            s = (s or "").strip()
+            if not s:
+                return
+            if s.lower() in {x.lower() for x in lines}:
+                return
+            lines.append(s)
+
+        for a in filter(None, [agent, target_agent]):
+            for node in nodes_iter(a):
+                ev = getattr(node, "event", None)
+                if not ev:
+                    continue
+                desc = (ev.description or "").strip()
+                subj = (ev.subject or "").strip()
+                obj = (ev.object or "").strip()
+                pair_mentioned = (
+                    any(n in (desc + " " + subj + " " + obj).lower() for n in names)
+                )
+                if not pair_mentioned:
+                    continue
+                if node.node_type == "chat":
+                    if desc:
+                        add_line(desc)
+                    try:
+                        fill = getattr(node, "filling", None) or []
+                        if fill:
+                            tail = fill[-2:] if len(fill) >= 2 else fill
+                            add_line(" | ".join(f"{s}: {u}" for s, u in tail))
+                    except Exception:
+                        pass
+                else:
+                    if desc:
+                        add_line(desc)
+                    elif subj or obj:
+                        add_line(f"{subj} {ev.predicate or 'is'} {obj}")
+
+                if len(lines) >= max_items:
+                    break
+            if len(lines) >= max_items:
+                break
+        return lines[:max_items]
+
+    def summarize_relationship(self, agent: Agent, world: World, target: str) -> Optional[str]:
+        target_agent = self._find_agent_by_name(world, target)
+        statements = self._gather_relationship_statements(agent, target_agent, target)
+        if not statements:
+            return None
+
+        context = {
+            "agent": agent.get_state(),
+            "target_agent": target_agent.get_state() if target_agent else {
+                "name": target,
+                "age": "",
+                "traits": "",
+                "lifestyle": "",
+                "status": "",
+                "background": "",
+                "memories": [],
+            },
+            "statements": "\n".join(statements),
+        }
+        try:
+            logger.debug(f"[Relation] Found {len(statements)} statements for {agent.name} ↔ {target}")
+        except Exception:
+            pass
+        prompt = self.env.get_template("summarize_relationship.txt").render(context)
+        summary = self.model.generate(prompt, max_tokens=80, stop=["\n", "</summary>", "###"]).strip()
+        if not summary:
+            return None
+
+        # Store as a thought for future retrieval on both agents (if present)
+        try:
+            ev_a = Event(agent.name, "relationship with", target_agent.name if target_agent else target, summary)
+            emb_a = get_embedding(summary)
+            agent.long_term_memory.add_thought(ev_a, relevance=5.0, keywords={agent.name, target.lower(), "relationship"}, filling=None, embedding=emb_a)
+            logger.debug(f"[Relation] Stored relationship summary for {agent.name} → {target}")
+        except Exception:
+            pass
+        try:
+            if target_agent:
+                ev_b = Event(target_agent.name, "relationship with", agent.name, summary)
+                emb_b = get_embedding(summary)
+                target_agent.long_term_memory.add_thought(ev_b, relevance=5.0, keywords={target_agent.name, agent.name.lower(), "relationship"}, filling=None, embedding=emb_b)
+                logger.debug(f"[Relation] Stored relationship summary for {target_agent.name} → {agent.name}")
+        except Exception:
+            pass
+        try:
+            logger.debug(f"[Relation] Summary => {summary}")
+        except Exception:
+            pass
+        return summary
+
     def generate_conversation(self, agent: Agent, world: World, target: str, max_turns: int = 6) -> List[List[str]]:
         target_agent = self._find_agent_by_name(world, target)
         agent_state = agent.get_state()
@@ -80,6 +191,15 @@ class ChatManager:
                 return path or "Unknown"
 
         prior = self._latest_chat_summary(agent, target)
+        relationship = None
+        try:
+            relationship = self.summarize_relationship(agent, world, target)
+        except Exception:
+            relationship = None
+        try:
+            logger.debug(f"[Chat] Relationship context present: {bool(relationship)} for {agent.name} ↔ {target}")
+        except Exception:
+            pass
 
         # Find latest chat node between the two (for time + excerpt)
         last_chat_time: Optional[str] = None
@@ -120,6 +240,7 @@ class ChatManager:
             "agent_action": getattr(agent.short_term_memory.action, "description", None),
             "target_action": getattr(target_agent.short_term_memory.action, "description", None) if target_agent else None,
             "prior_summary": prior,
+            "relationship": relationship,
             "last_chat_time": last_chat_time,
             "last_chat_excerpt": last_chat_excerpt,
             "agent_thoughts_about_target": agent_th_about_target,

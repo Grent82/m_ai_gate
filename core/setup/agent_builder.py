@@ -58,10 +58,12 @@ class AgentBuilder:
                 "You feel a duty to keep the village fed; "
                 "You trust Garrick the Innkeeper with village matters; "
                 "You admire Ayla's independence even though she rarely speaks; "
-                "You have a crush on Ayla."
+                "You have a crush on Ayla; "
+                "You suspect Garrick also seeks Ayla's favor; "
+                "You feel a quiet rivalry with him but keep it respectful."
             ),
             background=(
-                "A farmer in a tiny forest hamlet; inherited his father's barley and cabbage field beside his house."
+                "A farmer in a tiny forest hamlet; inherited his father's barley and cabbage field beside his house; lives alone without family."
             ),
             status="content, slightly tired from fieldwork",
             sex="male"
@@ -85,7 +87,7 @@ class AgentBuilder:
                 "You hide your emotions and secrets in the forest."
             ),
             background=(
-                "A solitary huntress living at the forest's edge; skilled with bow and traps; fiercely self-sufficient."
+                "A solitary huntress living at the forest's edge; skilled with bow and traps; fiercely self-sufficient; lives alone without family."
             ),
             status="alert, reserved",
             sex="female"
@@ -107,10 +109,12 @@ class AgentBuilder:
                 "You often hear confessions late at night over ale; "
                 "You like teasing Ayla, even if she rarely responds; "
                 "You admire Thomas’s work ethic and often give him a free drink; "
-                "You have a crush on Ayla."
+                "You have a crush on Ayla; "
+                "You sense Thomas also courts Ayla’s attention; "
+                "You relish a subtle, friendly competition for her regard."
             ),
             background=(
-                "Innkeeper of The Drunken Boar Tavern in a tiny forest hamlet; keeper of stories and village gossip."
+                "Innkeeper of The Drunken Boar Tavern in a tiny forest hamlet; keeper of stories and village gossip; lives alone without family."
             ),
             status="cheerful, attentive to guests",
             sex="male"
