@@ -85,14 +85,29 @@ class ChatManager:
         }
         prompt = self.env.get_template("generate_conversation.txt").render(context)
         raw = self.model.generate(prompt, max_tokens=300, stop=["</conversation>", "###"]).strip()
+
+        # Sanitize: strip special tokens and only accept exact speakers
+        def _strip_tags(s: str) -> str:
+            try:
+                return re.sub(r"<\|[^>]+\|>", "", s)
+            except Exception:
+                return s
+
+        allowed = {agent.name.lower(), (target_agent.name.lower() if target_agent else target.lower())}
         convo: List[List[str]] = []
         for line in raw.splitlines():
-            line = line.strip()
+            line = _strip_tags(line).strip()
             if not line or ":" not in line:
                 continue
             speaker, utterance = line.split(":", 1)
-            convo.append([speaker.strip(), utterance.strip()])
-            logger.debug(f"[Chat] Line => {speaker.strip()}: {utterance.strip()}")
+            sp = speaker.strip().strip('"“”').lower()
+            if sp not in allowed:
+                continue
+            utt = _strip_tags(utterance).strip().strip('"“”')
+            if not utt or utt.lower() == "<placeholder>":
+                continue
+            convo.append([speaker.strip(), utt])
+            logger.debug(f"[Chat] Line => {speaker.strip()}: {utt}")
         logger.debug(f"[Chat] Generated {len(convo)} convo lines.")
         return convo[: max_turns]
 

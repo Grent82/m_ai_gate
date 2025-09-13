@@ -7,8 +7,9 @@ Dialogue:
 {{ dialogue }}
 
 ### Instructions
-Write one sentence summary, describing what happened and the tone.
-Return only the sentence.
+- Write exactly one sentence (12–22 words), present tense, ending with a period.
+- Capture what happened and the tone (e.g., calm, tense, cheerful, worried).
+- Do not include quotes, tags, or any labels (no "Summary:").
+- If the dialogue is empty or trivial, return exactly: No substantive exchange.
 
 </summary>
-

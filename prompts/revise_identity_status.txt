@@ -14,4 +14,3 @@ You update an NPC's status for the new day based on their profile and recent mem
 Write a single short line that best describes {{ agent.name }}'s current status for today (mood, priorities, or concerns). Avoid exact repetition from memories. No preface.
 
 </status>
-

@@ -75,6 +75,18 @@ A small AI test game built with Python and Pygame, leveraging machine learning m
 
 ---
 
+## Model Setup
+
+- Set `MODEL_PATH` to the GGUF path of your Llama‑3.1‑Instruct model.
+- Optionally set `N_CTX` to control the context window (default: 2048).
+
+Example:
+
+```
+export MODEL_PATH=/models/DarkIdol-Llama-3.1-8B-Instruct-1.2-Q4_K_M.gguf
+export N_CTX=4096
+```
+
 ## Running the Game
 
 To start the game, execute the main script:

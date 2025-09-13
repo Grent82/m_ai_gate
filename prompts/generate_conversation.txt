@@ -18,12 +18,13 @@ You write brief, grounded conversations between two medieval NPC villagers in a 
 - What {{ target_agent.name }} recently thought about {{ agent.name }}: {{ target_thoughts_about_agent or 'no recent thoughts recorded' }}
 
 ### Instructions
-Write up to {{ max_turns }} alternating lines.
-- Keep 4–12 words per line; natural, practical, and location-appropriate.
-- Assume both are local residents unless memories say otherwise; do not ask about “staying at the inn” or travel plans for locals.
-- Prefer topics tied to current actions, recent events, weather, supplies, family, and village happenings.
-- No narration or stage directions; no quotes; no meta.
-- If uncertain, ask a small in-world clarifying question.
+- Write up to {{ max_turns }} alternating lines, starting with {{ agent.name }}.
+- Each line: 4–12 words, present tense, natural and location-appropriate.
+- Use only these speaker names exactly: "{{ agent.name }}" and "{{ target_agent.name }}".
+- Strictly alternate speakers; do not repeat any line or ask redundant questions.
+- Tie dialogue to current actions, prior summary, and location; avoid modern items or markets.
+- No narration, stage directions, quotes, tags, role tokens, or meta.
+- If context is unclear, ask exactly one short in‑world clarifying question (counts as your turn).
 
 ### Format
 {{ agent.name }}: <line>

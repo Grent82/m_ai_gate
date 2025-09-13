@@ -17,4 +17,3 @@ One short present-tense sentence describing the interaction.
 Return only the sentence.
 
 </obj>
-
