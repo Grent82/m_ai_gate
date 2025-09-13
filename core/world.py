@@ -41,6 +41,7 @@ class World:
         return {
             "date": self.date,
             "time": self.current_time.strftime("%H:%M"),
+            "weather": getattr(self, "weather", None),
         }
 
     # --- Time progression -------------------------------------------------

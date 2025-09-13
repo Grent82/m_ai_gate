@@ -5,13 +5,16 @@ You write brief, grounded conversations between two medieval NPC villagers in a 
 - Date/Time: {{ world.date }} {{ world.time }}
 - Location: {{ location.sector }} — {{ location.arena }}
 - Constraints: no modern items; no markets; cooking over hearth; water from bucket/well; simple tools; keep dialogue in-world.
+{% if world.weather %}- Weather: {{ world.weather }}{% endif %}
 
 ### Characters
-- {{ agent.name }}: traits={{ agent.traits }}; lifestyle={{ agent.lifestyle }}; status={{ agent.status }}.
-- {{ target_agent.name }}: traits={{ target_agent.traits }}; lifestyle={{ target_agent.lifestyle }}; status={{ target_agent.status }}.
+- {{ agent.name }}: age={{ agent.age }}; traits={{ agent.traits }}; lifestyle={{ agent.lifestyle }}; status={{ agent.status }}; background={{ agent.background }}.
+- {{ target_agent.name }}: age={{ target_agent.age }}; traits={{ target_agent.traits }}; lifestyle={{ target_agent.lifestyle }}; status={{ target_agent.status }}; background={{ target_agent.background }}.
 
 ### Context
 - Prior conversation summary: {{ prior_summary or 'None yet today.' }}
+{% if last_chat_time %}- Last chatted at: {{ last_chat_time }}{% endif %}
+{% if last_chat_excerpt %}- Last chat excerpt:\n{{ last_chat_excerpt }}{% endif %}
 - {{ agent.name }}’s current action: {{ agent_action or 'idle' }}
 - {{ target_agent.name }}’s current action: {{ target_action or 'idle' }}
 - What {{ agent.name }} recently thought about {{ target_agent.name }}: {{ agent_thoughts_about_target or 'no recent thoughts recorded' }}

@@ -52,7 +52,19 @@ class ChatManager:
     def generate_conversation(self, agent: Agent, world: World, target: str, max_turns: int = 6) -> List[List[str]]:
         target_agent = self._find_agent_by_name(world, target)
         agent_state = agent.get_state()
-        target_state = target_agent.get_state() if target_agent else {"name": target, "traits": "", "lifestyle": "", "status": "", "memories": []}
+        target_state = (
+            target_agent.get_state()
+            if target_agent
+            else {
+                "name": target,
+                "age": "",
+                "traits": "",
+                "lifestyle": "",
+                "status": "",
+                "background": "",
+                "memories": [],
+            }
+        )
 
         sector_path = ""
         arena_path = ""
@@ -68,6 +80,35 @@ class ChatManager:
                 return path or "Unknown"
 
         prior = self._latest_chat_summary(agent, target)
+
+        # Find latest chat node between the two (for time + excerpt)
+        last_chat_time: Optional[str] = None
+        last_chat_excerpt: Optional[str] = None
+        try:
+            for node in agent.long_term_memory.node_sequences.get("chat", []):
+                ev = getattr(node, "event", None)
+                if not ev:
+                    continue
+                if (ev.subject == agent.name and ev.object == (target_agent.name if target_agent else target)) or (
+                    ev.subject == (target_agent.name if target_agent else target) and ev.object == agent.name
+                ):
+                    last_chat_time = getattr(node, "created", None)
+                    if last_chat_time:
+                        last_chat_time = last_chat_time.strftime("%H:%M")
+                    # node.filling may carry chat lines like [[speaker, utterance], ...]
+                    lines = []
+                    try:
+                        fill = getattr(node, "filling", None) or []
+                        # Take the last 2 lines for brevity
+                        for s, u in (fill[-2:] if len(fill) >= 2 else fill):
+                            lines.append(f"{s}: {u}")
+                    except Exception:
+                        pass
+                    if lines:
+                        last_chat_excerpt = "\n".join(lines)
+                    break
+        except Exception:
+            pass
         agent_th_about_target = self._recent_thoughts_about(agent, target)
         target_th_about_agent = self._recent_thoughts_about(target_agent, agent.name) if target_agent else None
 
@@ -79,6 +120,8 @@ class ChatManager:
             "agent_action": getattr(agent.short_term_memory.action, "description", None),
             "target_action": getattr(target_agent.short_term_memory.action, "description", None) if target_agent else None,
             "prior_summary": prior,
+            "last_chat_time": last_chat_time,
+            "last_chat_excerpt": last_chat_excerpt,
             "agent_thoughts_about_target": agent_th_about_target,
             "target_thoughts_about_agent": target_th_about_agent,
             "max_turns": max_turns,
