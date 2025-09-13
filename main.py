@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from agents.perceive import Perception
 from agents.planner import ModularPlanner
 from agents.reflection import Reflection
