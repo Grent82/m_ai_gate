@@ -56,14 +56,13 @@ class Agent:
                 if node.event and node.event.description:
                     recent_memories.append(node.event.description)
 
-        # Provide a lightweight location string as coordinates for prompts
         location = f"({self.position[0]}, {self.position[1]})"
 
         return {
             "name": self.name,
             "age": self.age,
-            "traits": self.traits,  # printable string for most prompts
-            "traits_list": self._traits_list,  # list form for prompts that want join
+            "traits": self.traits,
+            "traits_list": self._traits_list,
             "lifestyle": self.lifestyle,
             "location": location,
             "memories": recent_memories,

@@ -8,6 +8,26 @@ logger = setup_logger(__name__, log_level="DEBUG")
 
 
 class IdentityReviser:
+    """Revise an agent's status using a local LLM guided by a Jinja2 template.
+
+    This class renders a prompt from 'revise_identity_status.txt' (in ``template_path``),
+    invokes :class:`models.local_model.LocalModel` to generate a status update, and, if
+    produced, updates the agent and records the change in long‑term memory as an
+    :class:`core.agent_action.Event` with an embedding from
+    :func:`models.embeddings.get_embedding`.
+
+    Parameters
+    ----------
+    model : LocalModel
+        Local LLM interface used for text generation.
+    template_path : str, optional
+        Directory containing prompt templates, by default "prompts".
+
+    Notes
+    -----
+    revise(agent) mutates the given agent (sets ``agent.status``) and appends a
+    thought to ``agent.long_term_memory``; it returns None.
+    """
     def __init__(self, model: LocalModel, template_path: str = "prompts"):
         self.model = model
         self.env = Environment(loader=FileSystemLoader(template_path))

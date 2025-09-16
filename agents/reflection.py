@@ -30,7 +30,6 @@ class Reflection:
         self.retrieval = retrieval
         self.env = Environment(loader=FileSystemLoader(prompt_dir))
         self.event_generator = EventTripleGenerator(model, prompt_dir)
-        # Default reset value for the importance trigger
         self.importance_threshold = 150.0
 
     # ------------------------------------------------------------------
@@ -67,7 +66,7 @@ class Reflection:
 
         self._reset_reflection_counter(agent)
         logger.info(
-            f"[Reflection] Stored {len(created_nodes)} reflective thoughts."  # noqa: E501
+            f"[Reflection] Stored {len(created_nodes)} reflective thoughts."
         )
         return created_nodes
 
@@ -158,6 +157,7 @@ class Reflection:
         return insights
 
     def _thought_to_event(self, agent: Agent, thought: str) -> Event:
+        logger.debug(f"[Reflection] Generating event triple for thought '{thought}'...")
         triples = self.event_generator.generate_event(agent, thought)
         if triples:
             subject, predicate, obj = triples[0]

@@ -37,7 +37,7 @@ class PathPlan:
 class AgentAction:
     address: Optional[str] = None
     start_time: Optional[datetime] = None
-    duration: Optional[int] = None  # in minutes
+    duration: Optional[int] = None
     description: Optional[str] = None
     visual_hint: Optional[str] = None
     event: Event = field(default_factory=lambda: Event("", None, None))
@@ -45,7 +45,6 @@ class AgentAction:
     object_interaction: ObjectInteraction = field(default_factory=ObjectInteraction)
     chat: ChatInteraction = field(default_factory=ChatInteraction)
     path: PathPlan = field(default_factory=PathPlan)
-    # Optional decomposition of the current action into microtasks (strings)
     subtasks: List[str] = field(default_factory=list)
 
     def start(self, now: Optional[datetime] = None):

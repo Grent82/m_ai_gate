@@ -4,6 +4,9 @@ from core.agent_action import Event
 from agents.event_triple_generator import EventTripleGenerator
 from agents.inner_thought_generator import InnerThoughtGenerator
 from models.embeddings import get_embedding
+from core.logger import setup_logger
+
+logger = setup_logger(__name__, log_level="DEBUG")
 
 class AgentBuilder:
     def __init__(self, inner_thought_generator: InnerThoughtGenerator, event_triple_generator: EventTripleGenerator):
@@ -123,6 +126,7 @@ class AgentBuilder:
         return agents
 
     def _parse_event_triple(self, agent: Agent, description: str):
+        logger.debug(f"[AgentBuilder] Parsing event triple for description '{description}'...")
         return self.event_triple_generator.generate_event(agent, description)
 
     def _make_event(self, s, p, o, description):
