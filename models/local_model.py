@@ -4,7 +4,7 @@ import os
 
 from core.logger import setup_logger
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, log_level="DEBUG")
 
 class LocalModel:
     """Thin wrapper around :class:`llama_cpp.Llama`.
@@ -71,10 +71,8 @@ class LocalModel:
                 tail = max_prompt_tokens - head
                 kept_tokens = prompt_tokens[:head] + prompt_tokens[-tail:]
                 try:
-                    # Try to detokenize the kept tokens
                     detok = self.llm.detokenize(kept_tokens).decode("utf-8", errors="ignore")
                 except Exception:
-                    # Fallback to character-based truncation if detokenization fails
                     approx_chars = max(2000, min(len(prompt), 4 * max_prompt_tokens))
                     detok = (
                         prompt[: approx_chars // 2]

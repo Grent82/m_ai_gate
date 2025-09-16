@@ -19,7 +19,8 @@ class ChatManager:
     def _find_agent_by_name(self, world: World, name: str) -> Optional[Agent]:
         try:
             return next((a for a in world.agents if a.name == name), None)
-        except Exception:
+        except Exception as e:
+            logger.debug("[Chat] _find_agent_by_name failed: %s", e)
             return None
 
     def _latest_chat_summary(self, agent: Agent, other_name: str) -> Optional[str]:
@@ -32,8 +33,8 @@ class ChatManager:
                     ev.subject == other_name and ev.object == agent.name
                 ):
                     return ev.description
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[Chat] _latest_chat_summary failed: %s", e)
         return None
 
     def _recent_thoughts_about(self, agent: Agent, other_name: str, limit: int = 2) -> Optional[str]:
@@ -47,8 +48,8 @@ class ChatManager:
                     thoughts.append(ev.description)
                 if len(thoughts) >= limit:
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[Chat] _recent_thoughts_about failed: %s", e)
         return "; ".join(thoughts[:limit]) if thoughts else None
 
     def _gather_relationship_statements(
@@ -66,14 +67,17 @@ class ChatManager:
                     yield n
 
         lines: List[str] = []
+        seen_lower: set[str] = set()
 
         def add_line(s: str) -> None:
             s = (s or "").strip()
             if not s:
                 return
-            if s.lower() in {x.lower() for x in lines}:
+            key = s.lower()
+            if key in seen_lower:
                 return
             lines.append(s)
+            seen_lower.add(key)
 
         for a in filter(None, [agent, target_agent]):
             for node in nodes_iter(a):
@@ -96,8 +100,8 @@ class ChatManager:
                         if fill:
                             tail = fill[-2:] if len(fill) >= 2 else fill
                             add_line(" | ".join(f"{s}: {u}" for s, u in tail))
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("[Relation] Parse chat filling failed: %s", e)
                 else:
                     if desc:
                         add_line(desc)
@@ -112,6 +116,12 @@ class ChatManager:
 
     def summarize_relationship(self, agent: Agent, world: World, target: str) -> Optional[str]:
         target_agent = self._find_agent_by_name(world, target)
+        if target_agent and target_agent.name == agent.name:
+            try:
+                logger.debug("[Relation] Skipping self-relationship summary for %s", agent.name)
+            except Exception:
+                pass
+            return None
         statements = self._gather_relationship_statements(agent, target_agent, target)
         if not statements:
             return None
@@ -131,10 +141,17 @@ class ChatManager:
         }
         try:
             logger.debug(f"[Relation] Found {len(statements)} statements for {agent.name} ↔ {target}")
-        except Exception:
-            pass
-        prompt = self.env.get_template("summarize_relationship.txt").render(context)
-        summary = self.model.generate(prompt, max_tokens=80, stop=["\n", "</summary>", "###"]).strip()
+        except Exception as e:
+            logger.debug("[Relation] Logging statements failed: %s", e)
+        try:
+            prompt = self.env.get_template("summarize_relationship.txt").render(context)
+        except Exception as e:
+            logger.debug("[Relation] Template render failed: %s", e)
+            prompt = ""
+        try:
+            summary = self.model.generate(prompt, max_tokens=80, stop=["</summary>", "###"]).strip()
+        except Exception as e:
+            logger.debug("[Relation] Model generation failed: %s", e)
         if not summary:
             return None
 
@@ -144,20 +161,20 @@ class ChatManager:
             emb_a = get_embedding(summary)
             agent.long_term_memory.add_thought(ev_a, relevance=5.0, keywords={agent.name, target.lower(), "relationship"}, filling=None, embedding=emb_a)
             logger.debug(f"[Relation] Stored relationship summary for {agent.name} → {target}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[Relation] Failed to store relationship summary for agent: %s", e)
         try:
             if target_agent:
                 ev_b = Event(target_agent.name, "relationship with", agent.name, summary)
                 emb_b = get_embedding(summary)
                 target_agent.long_term_memory.add_thought(ev_b, relevance=5.0, keywords={target_agent.name, agent.name.lower(), "relationship"}, filling=None, embedding=emb_b)
                 logger.debug(f"[Relation] Stored relationship summary for {target_agent.name} → {agent.name}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[Relation] Failed to store relationship summary for target: %s", e)
         try:
             logger.debug(f"[Relation] Summary => {summary}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[Relation] Logging summary failed: %s", e)
         return summary
 
     def generate_conversation(self, agent: Agent, world: World, target: str, max_turns: int = 6) -> List[List[str]]:
@@ -182,24 +199,27 @@ class ChatManager:
         try:
             sector_path = world.tile_manager.get_tile_path(agent.position, "sector")
             arena_path = world.tile_manager.get_tile_path(agent.position, "arena")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[Chat] get_tile_path failed: %s", e)
+
         def last_part(path: str) -> str:
             try:
                 return path.split(":")[-1]
-            except Exception:
+            except Exception as e:
+                logger.debug("[Chat] last_part failed: %s", e)
                 return path or "Unknown"
 
         prior = self._latest_chat_summary(agent, target)
         relationship = None
         try:
             relationship = self.summarize_relationship(agent, world, target)
-        except Exception:
+        except Exception as e:
+            logger.debug("[Chat] summarize_relationship failed: %s", e)
             relationship = None
         try:
             logger.debug(f"[Chat] Relationship context present: {bool(relationship)} for {agent.name} ↔ {target}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[Chat] Logging relationship context failed: %s", e)
 
         # Find latest chat node between the two (for time + excerpt)
         last_chat_time: Optional[str] = None
@@ -222,13 +242,13 @@ class ChatManager:
                         # Take the last 2 lines for brevity
                         for s, u in (fill[-2:] if len(fill) >= 2 else fill):
                             lines.append(f"{s}: {u}")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("[Chat] Parsing last chat excerpt failed: %s", e)
                     if lines:
                         last_chat_excerpt = "\n".join(lines)
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[Chat] last chat scan failed: %s", e)
         agent_th_about_target = self._recent_thoughts_about(agent, target)
         target_th_about_agent = self._recent_thoughts_about(target_agent, agent.name) if target_agent else None
 
@@ -247,14 +267,22 @@ class ChatManager:
             "target_thoughts_about_agent": target_th_about_agent,
             "max_turns": max_turns,
         }
-        prompt = self.env.get_template("generate_conversation.txt").render(context)
-        raw = self.model.generate(prompt, max_tokens=300, stop=["</conversation>", "###"]).strip()
+        try:
+            prompt = self.env.get_template("generate_conversation.txt").render(context)
+        except Exception as e:
+            logger.debug("[Chat] Template render failed: %s", e)
+            prompt = ""
+        try:
+            raw = self.model.generate(prompt, max_tokens=300, stop=["</conversation>", "###"]).strip()
+        except Exception as e:
+            logger.debug("[Chat] Model generation failed: %s", e)
+            raw = ""
 
-        # Sanitize: strip special tokens and only accept exact speakers
         def _strip_tags(s: str) -> str:
             try:
                 return re.sub(r"<\|[^>]+\|>", "", s)
-            except Exception:
+            except Exception as e:
+                logger.debug("[Chat] _strip_tags failed: %s", e)
                 return s
 
         allowed = {agent.name.lower(), (target_agent.name.lower() if target_agent else target.lower())}
@@ -275,17 +303,27 @@ class ChatManager:
         logger.debug(f"[Chat] Generated {len(convo)} convo lines.")
         return convo[: max_turns]
 
-    def summarize_conversation(self, agent, convo: List[List[str]]) -> str:
+    def summarize_conversation(self, agent: Agent, convo: List[List[str]]) -> str:
+        if not convo:
+            return ""
         convo_text = "\n".join(f"{s}: {u}" for s, u in convo)
         context = {
             "agent": agent.get_state(),
             "dialogue": convo_text,
         }
-        prompt = self.env.get_template("summarize_conversation.txt").render(context)
-        summary = self.model.generate(prompt, max_tokens=120, stop=["\n", "</summary>", "###"]).strip()
+        try:
+            prompt = self.env.get_template("summarize_conversation.txt").render(context)
+        except Exception as e:
+            logger.debug("[Chat] Template render failed: %s", e)
+            return ""
+        try:
+            summary = self.model.generate(prompt, max_tokens=120, stop=["\n", "</summary>", "###"]).strip()
+        except Exception as e:
+            logger.debug("[Chat] Model generation failed: %s", e)
+            return ""
         try:
             summary = re.sub(r"^(?:answer|summary|response)\s*:\s*", "", summary, flags=re.IGNORECASE).strip()
             logger.debug(f"[Chat] Summary => {summary}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[Chat] Postprocess failed: %s", e)
         return summary

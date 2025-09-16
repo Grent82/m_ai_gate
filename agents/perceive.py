@@ -61,7 +61,6 @@ class Perception:
             tile_data = self._get_tile_data(tile_pos)
             if not tile_data:
                 continue
-            # Only store well-defined spatial info
             world_name = tile_data.world_name
             sector = tile_data.sector
             arena = tile_data.arena
@@ -73,9 +72,7 @@ class Perception:
             # Ensure sector/arena presence and add object if available
             self.agent.spatial_memory.update_memory(world_name, sector, [arena])
             if game_object:
-                self.agent.spatial_memory.update_arena_objects(
-                    world_name, sector, arena, [game_object]
-                )
+                self.agent.spatial_memory.update_arena_objects(world_name, sector, arena, [game_object] )
             
             #logger.debug("[Perception] Spatial update: world='%s', sector='%s', arena='%s', object='%s'",world_name,sector,arena,game_object or "",)
 
