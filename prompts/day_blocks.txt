@@ -22,18 +22,18 @@ Agent Memories:
 {% endfor %}
 
 ### Instructions:
-Return a daily schedule broken into large blocks that adhere to the medieval village constraints above (e.g., cook at hearth, fetch water, tend fields, trade at the tavern; avoid markets/ovens/packaged goods).
+Create a daily schedule divided into time blocks, reflecting the medieval village setting (e.g., cooking on a hearth, fetching water, tending fields, trading at the tavern; no markets, ovens, or packaged goods).
 Each block must:
-- Start with a time range using 24-hour format (`HH:MM–HH:MM`)
-- Be followed by a colon `:` and one short sentence (the activity)
-- One block per line
+- Specify a time range in 24-hour format (HH:MM–HH:MM)
+- Follow with a colon : and a single, concise activity sentence
+- List one task per line, avoiding 'and' or 'or'
 
-Do not greet the user. Do not write anything else.
-
-Return the schedule inside this block:
+Return the schedule within this block:
 <day_plan>
-06:00–08:00: Morning chores at home and simple breakfast by the hearth  
-08:00–12:00: Tend to fields or prepare gear (role-appropriate work)  
+06:00–07:00: Fetch water from the stream
+07:00–08:00: Cook breakfast on the hearth
+08:00–09:00: Repair tools in the shed
+09:00–12:00: Tend to crops in the fields
 ...
 </day_plan>
 
