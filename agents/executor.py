@@ -236,7 +236,9 @@ class Executor(IExecutor):
             preferred = candidates
 
         ax, ay = agent.position
-        best = min(preferred, key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2)
+        preferred_no_self = [p for p in preferred if p != (ax, ay)]
+        choice_pool = preferred_no_self if preferred_no_self else preferred
+        best = min(choice_pool, key=lambda p: (p[0] - ax) ** 2 + (p[1] - ay) ** 2)
 
         bx, by = best
         try:
