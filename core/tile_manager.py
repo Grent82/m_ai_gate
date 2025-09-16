@@ -1,7 +1,7 @@
 from typing import List, Tuple, Optional
 
 from core.agent_action import Event
-from core.tile import Tile
+from core.tile import Tile, TerrainType
 from core.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -119,6 +119,10 @@ class TileManager:
     def set_collision(self, x: int, y: int, collision: bool) -> None:
         """Sets the collision status for a specific tile."""
         self.get_tile(x, y).collision = collision
+
+    def set_terrain(self, x: int, y: int, terrain: TerrainType) -> None:
+        """Sets the terrain type for a specific tile."""
+        self.get_tile(x, y).terrain = terrain
 
     def is_collidable(self, x: int, y: int) -> bool:
         """Checks if a tile is collidable."""

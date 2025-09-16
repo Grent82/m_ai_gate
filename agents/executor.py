@@ -292,15 +292,9 @@ class Executor(IExecutor):
 
         def move_cost(x: int, y: int) -> float:
             try:
-                obj = tm.get_tile(x, y).game_object or ""
+                return tm.get_tile(x, y).nav_cost()
             except Exception:
                 return 1.0
-            obj = obj.lower()
-            if obj in {"gravel", "path", "road"}:
-                return 0.5
-            if obj in {"bush"}:
-                return 1.2
-            return 1.0
 
         pq: List[Tuple[float, Tuple[int, int]]] = []
         heapq.heappush(pq, (0.0, start))

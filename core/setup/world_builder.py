@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 from core.agent_action import Event
 from core.world import World
+from core.tile import TerrainType
 
 class WorldBuilder:
     def __init__(self):
@@ -14,7 +15,7 @@ class WorldBuilder:
             for y in range(world.tile_manager.height):
                 tiles.set_sector(x, y, "Outside")
                 tiles.set_arena(x, y, "Village Outskirts")
-                tiles.set_game_object(x, y, "grass")
+                tiles.set_terrain(x, y, TerrainType.GRASS)
                 tiles.set_collision(x, y, False)
 
         def build_room(
@@ -30,9 +31,8 @@ class WorldBuilder:
         ) -> None:
             """Build a rectangular room with walls, floor, and optional doors.
 
-            - Perimeter becomes `wall` (collidable) except at `doors` which become
-              `door` (non-collidable)
-            - Interior becomes `floor` (non-collidable)
+            - Perimeter is collidable (walls); door coordinates are non-collidable openings
+            - Interior becomes floor (non-collidable)
             - Places any `objects` provided on top (does not change collision)
             - Validates bounds and coordinate ordering
             """
@@ -53,13 +53,12 @@ class WorldBuilder:
 
                     if on_perimeter:
                         if (x, y) in door_set:
-                            tiles.set_game_object(x, y, "door")
                             tiles.set_collision(x, y, False)
                         else:
-                            tiles.set_game_object(x, y, "wall")
+                            tiles.set_terrain(x, y, TerrainType.WALL)
                             tiles.set_collision(x, y, True)
                     else:
-                        tiles.set_game_object(x, y, "floor")
+                        tiles.set_terrain(x, y, TerrainType.FLOOR)
                         tiles.set_collision(x, y, False)
 
             passable_furniture = {"bed", "bench", "chair"}
@@ -78,7 +77,6 @@ class WorldBuilder:
                     tiles.set_collision(ox, oy, False)
                 elif obj_name in blocking_objects:
                     tiles.set_collision(ox, oy, True)
-                # else: leave existing collision as is
 
         # House 1 – Farmer
         build_room(
@@ -130,7 +128,11 @@ class WorldBuilder:
             for y in range(7, 8):
                 tiles.set_sector(x, y, "Farmer's Field")
                 tiles.set_arena(x, y, "Wheat Patch")
-                tiles.set_game_object(x, y, "wheat" if (x + y) % 2 == 0 else "soil")
+                tiles.set_terrain(x, y, TerrainType.SOIL)
+                if (x + y) % 2 == 0:
+                    tiles.set_game_object(x, y, "wheat")
+                else:
+                    tiles.set_game_object(x, y, "") # TODO: let the wheat grow back over time
                 tiles.set_collision(x, y, False)
 
         # Add forest area (near hunter’s cabin)
@@ -138,21 +140,18 @@ class WorldBuilder:
             for y in range(1, 9):
                 tiles.set_sector(x, y, "Forest Edge")
                 tiles.set_arena(x, y, "Hunting Grounds")
-                obj = "tree" if (x + y) % 2 == 0 else "bush"
-                tiles.set_game_object(x, y, obj)
-                # Trees are collidable, bushes are passable
-                tiles.set_collision(x, y, obj == "tree")
+                tiles.set_terrain(x, y, TerrainType.FOREST)
+                is_dense = (x + y) % 2 == 0
+                tiles.set_collision(x, y, is_dense)
 
         def lay_gravel_path(points: List[Tuple[int, int]]):
             for (px, py) in points:
                 if not (0 <= px < tiles.width and 0 <= py < tiles.height):
                     continue
-                # Do not overwrite doors or walls
-                obj_here = tiles.get_tile(px, py).game_object
-                if obj_here in {"door", "wall"}:
+                if tiles.get_tile(px, py).is_collidable():
                     continue
-                tiles.set_arena(px, py, "Village Path")
-                tiles.set_game_object(px, py, "gravel")
+                #tiles.set_arena(px, py, "Village Path")
+                tiles.set_terrain(px, py, TerrainType.GRAVEL)
                 tiles.set_collision(px, py, False)
 
         gravel_points = set()
