@@ -1,6 +1,6 @@
+import os
+import random
 from dotenv import load_dotenv
-
-load_dotenv()
 
 from agents.perceive import Perception
 from agents.planner import ModularPlanner
@@ -15,9 +15,21 @@ from models.local_model import LocalModel
 from core.logger import setup_logger
 
 
-def run_agent():
+def run_agent() -> None:
+    """Bootstraps the world, agents, and runs the simulation tick loop."""
 
-    logger = setup_logger(__name__, log_level="DEBUG")
+    # Load environment and set deterministic seeds
+    load_dotenv()
+    random.seed(42)
+
+    # Configure logging
+    log_level = os.getenv("LOG_LEVEL", "INFO")
+    logger = setup_logger(__name__, log_level=log_level)
+
+    # Simulation timing (minutes)
+    tick_minutes = int(os.getenv("TICK_MINUTES", "5"))
+    sim_minutes = int(os.getenv("SIM_MINUTES", "1440"))
+    ticks = sim_minutes // tick_minutes
 
     model = LocalModel()
     perception = Perception(model)
@@ -30,52 +42,30 @@ def run_agent():
         world.add_agent(agent)
 
 
-    TICK_MINUTES = 5
-    TICKS = 3600 // TICK_MINUTES
-    #TICKS = 100800 // TICK_MINUTES
-    for tick in range(TICKS):
-        logger.info(f"=== Tick {tick + 1}/{TICKS} @ {world.current_time.strftime('%H:%M')} ===")
+    for tick in range(ticks):
+        logger.info(f"=== Tick {tick + 1}/{ticks} @ {world.current_time.strftime('%H:%M')} ===")
         for agent in agents:
-            # Sync time
             agent.short_term_memory.current_time = world.current_time
 
-            # Perceive current world
             perceived = perception.perceive(agent, world)
             logger.info(f"Perceived {len(perceived)} events for {agent.name}.")
 
-            # Retrieve and plan
             retrieval = Retrieval(agent.long_term_memory, agent.short_term_memory)
             retrieved = retrieval.retrieve_context(perceived)
             logger.info(f"Retrieved {len(retrieved)} relevant memory nodes for {agent.name}.")
 
-            # Cleanup any expired action before planning
-            executor.cleanup_expired(agent, world)
-
             plan = planner.plan(agent, world, retrieved, perceived)
             logger.info(f"Plan for {agent.name}: {plan}")
 
-            # Execute a few steps of the plan
+            reflection = Reflection(model, retrieval)
+            reflections = reflection.reflect(agent)
+            logger.info(f"Generated {len(reflections)} reflective thoughts for {agent.name}.")
+
             status = executor.execute(agent, world, max_steps=2)
             logger.info(f"Execution status for {agent.name}: {status}")
 
-            # Perceive again to store the outcome
-            post_exec_percepts = perception.perceive(agent, world)
-            logger.info(f"Post-exec perceived {len(post_exec_percepts)} events for {agent.name}.")
-
-            # Reflect
-            reflact = Reflection(model, retrieval)
-            reflections = reflact.reflect(agent)
-            logger.info(f"Generated {len(reflections)} reflective thoughts for {agent.name}.")
-
         # Advance global time after all agents act
-        world.advance_time(TICK_MINUTES)
-
-
-    # === Modular Planning ===
-    #planner.plan(agent, world)
-
-    #tile_actions = planner.get_tile_actions(agent)
-    #print(tile_actions)
+        world.advance_time(tick_minutes)
 
 if __name__ == "__main__":
     run_agent()
