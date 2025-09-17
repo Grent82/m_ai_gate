@@ -1,3 +1,4 @@
+import os
 from typing import Dict, List, Optional, Tuple
 from jinja2 import Environment, FileSystemLoader
 from core.agent_action import Event
@@ -37,8 +38,6 @@ class ModularPlanner(IPlanner):
         now = agent.short_term_memory.current_time
         current_action = agent.short_term_memory.action
 
-        # If there is no active action yet (e.g., at simulation start), or
-        # the current action has finished, determine a new action.
         if (
             current_action.start_time is None
             or current_action.duration is None
@@ -48,7 +47,6 @@ class ModularPlanner(IPlanner):
             logger.info("[Planner] Current action expired. Determining new plan...")
             self._determine_next_action(agent, world) # todo
 
-        # Prefer reacting to live percepts first; fall back to retrieved-context event
         focused_event = None
         if perceived_nodes:
             focused_event = self._select_focused_event_from_percepts(agent, perceived_nodes)
@@ -106,7 +104,6 @@ class ModularPlanner(IPlanner):
         event = Event(agent.name, "plan", agent.short_term_memory.current_time.strftime('%A %B %d'), thought)
         agent.long_term_memory.add_thought(event, relevance, set(["plan"]), None, embedding)
 
-        # Flip flags after planning is complete
         agent.short_term_memory.is_first_day = False
         agent.short_term_memory.is_new_day = False
 
@@ -165,17 +162,37 @@ class ModularPlanner(IPlanner):
         logger.debug(f"Hourly schedule from daily blocks: {final_schedule}")
         agent.short_term_memory.daily_schedule_hourly = final_schedule
 
-    def generate_microtasks(self, agent: Agent, world: World, schedule_summary: str) -> str:
-        logger.info(f"[Planner] Generating microtasks from schedule summary...")
-        logger.debug(f"[Planner] Schedule summary '{schedule_summary}'")
+    def generate_microtasks(
+        self,
+        agent: Agent,
+        world: World,
+        *,
+        task_description: str,
+        start_time: str,
+        end_time: str,
+        duration_minutes: int,
+        sector: str,
+        arena: str,
+    ) -> str:
+        logger.info("[Planner] Generating microtasks for current action window...")
         context = {
             "agent": agent.get_state(),
             "world": world.get_state(),
-            "schedule_summary": schedule_summary,
+            "task_description": task_description,
+            "start_time": start_time,
+            "end_time": end_time,
+            "duration_minutes": duration_minutes,
+            "location": {"sector": sector, "arena": arena},
         }
         prompt = self._render_prompt("microtasks.txt", context)
         logger.debug(f"[Planner] Microtasks prompt =>\n{prompt}")
-        response = self.model.generate(prompt, max_tokens=500, stop=["</microtasks>", "User:", "###"])
+        response = self.model.generate(
+            prompt,
+            max_tokens=500,
+            stop=["</microtasks>", "User:", "###"],
+            temperature=0.3,
+            top_p=0.95,
+        )
         logger.debug(f"Microtasks response: {response}")
         return response.strip()
 
@@ -235,16 +252,20 @@ class ModularPlanner(IPlanner):
 
         def sanitize_time_token(token: str) -> Optional[str]:
             token = token.strip()
+            logger.debug(f"Sanitizing time token: '{token}'")
             # Capture hours and up to two minute digits, ignoring trailing junk like 'ayer'
             m = re.match(r"^(\d{1,2})\s*:\s*([0-5]?\d)", token)
             if not m:
+                logger.warning(f"Time token format invalid: '{token}'")
                 return None
             hh_str, mm_str = m.groups()
             try:
                 hh = int(hh_str)
             except ValueError:
+                logger.error(f"Hour parsing failed for token '{token}'")
                 return None
             if not (0 <= hh <= 23):
+                logger.warning(f"Hour out of range in token '{token}'")
                 return None
             # If minutes is a single digit (e.g., '5' or '0'), interpret as '05' / '00'
             if len(mm_str) == 1:
@@ -252,8 +273,10 @@ class ModularPlanner(IPlanner):
             try:
                 mm = int(mm_str)
             except ValueError:
+                logger.error(f"Minute parsing failed for token '{token}'")
                 return None
             if not (0 <= mm <= 59):
+                logger.warning(f"Minute out of range in token '{token}'")
                 return None
             return f"{hh:02d}:{mm:02d}"
 
@@ -275,9 +298,7 @@ class ModularPlanner(IPlanner):
             end = sanitize_time_token(end_tok)
 
             if not start or not end:
-                logger.warning(
-                    f"[Planner] Malformed time in day block line; skipping: '{raw_line}' (start='{start_tok}', end='{end_tok}')"
-                )
+                logger.warning( f"[Planner] Malformed time in day block line; skipping: '{raw_line}' (start='{start_tok}', end='{end_tok}')" )
                 continue
 
             try:
@@ -290,23 +311,11 @@ class ModularPlanner(IPlanner):
             # Handle cross‑midnight ranges by splitting into two blocks
             if end_dt <= start_dt:
                 if start != end:
-                    logger.debug(
-                        f"[Planner] Splitting cross-midnight block: '{raw_line}' -> ['{start}-23:59', '00:00-{end}']"
-                    )
-                    blocks.append({
-                        "start": start,
-                        "end": "23:59",
-                        "description": description.strip(),
-                    })
-                    blocks.append({
-                        "start": "00:00",
-                        "end": end,
-                        "description": description.strip(),
-                    })
+                    logger.debug( f"[Planner] Splitting cross-midnight block: '{raw_line}' -> ['{start}-23:59', '00:00-{end}']" )
+                    blocks.append({ "start": start, "end": "23:59", "description": description.strip(), })
+                    blocks.append({ "start": "00:00", "end": end, "description": description.strip(), })
                 else:
-                    logger.warning(
-                        f"[Planner] Zero-length block; skipping: '{raw_line}' -> start='{start}', end='{end}'"
-                    )
+                    logger.warning( f"[Planner] Zero-length block; skipping: '{raw_line}' -> start='{start}', end='{end}'" )
                 continue
 
             blocks.append({
@@ -381,6 +390,7 @@ class ModularPlanner(IPlanner):
             except Exception as e:
                 logger.debug("[Planner] Could not build fallback sector list: %s", e)
 
+        # Determine Action sector
         current_sector = world.tile_manager.get_current_sector(agent.position)
         sector_prompt_context = {
             "agent": agent.get_state(),
@@ -394,24 +404,21 @@ class ModularPlanner(IPlanner):
             sector_prompt,
             max_tokens=32,
             stop=["User:", "###"],
-            temperature=0.1,
-            top_p=0.5,
+            temperature=0.0,
+            top_p=1.0,
             allowed_strings=available_sectors,
         ).strip()
-        logger.debug(
-            "[Planner] Sector raw output='%s', options=%s, current='%s'",
-            raw_sector,
-            sector_prompt_context["available_sectors"],
-            sector_prompt_context["current_sector"],
-        )
+        logger.debug( "[Planner] Sector raw output='%s', options=%s, current='%s'", raw_sector, sector_prompt_context["available_sectors"], sector_prompt_context["current_sector"], )
         sector = self._pick_from_options(
             raw_sector,
             available_sectors,
             current_sector,
         )
 
+        # Determine Action arena
         available_arenas = agent.spatial_memory.get_accessible_arenas(world.name, sector)
         if not available_arenas:
+            logger.debug(f"[Planner] No arenas known for sector '{sector}'.")
             try:
                 tm = world.tile_manager
                 poss = tm.find_positions(sector=sector, include_collidable=True)
@@ -445,8 +452,8 @@ class ModularPlanner(IPlanner):
             arena_prompt,
             max_tokens=32,
             stop=["User:", "###"],
-            temperature=0.1,
-            top_p=0.5,
+            temperature=0.0,
+            top_p=1.0,
             allowed_strings=available_arenas,
         ).strip()
         logger.debug(
@@ -460,6 +467,7 @@ class ModularPlanner(IPlanner):
             default_arena,
         )
 
+        # Determine Action object
         tm = world.tile_manager
         available_objects = agent.spatial_memory.get_game_objects_in_arena(world.name, sector, arena)
 
@@ -479,79 +487,45 @@ class ModularPlanner(IPlanner):
                 logger.debug("[Planner] Could not build objects via tile scan: %s", e)
                 return []
 
-        structural = {"floor", "wall", "door"}
-
-        def is_reachable_object(obj: str) -> bool:
-            try:
-                positions = tm.find_positions(sector=sector, arena=arena, game_object=obj, include_collidable=True)
-            except Exception:
-                positions = []
-            for (gx, gy) in positions:
-                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                    nx, ny = gx + dx, gy + dy
-                    if not tm.is_within_bounds(nx, ny):
-                        continue
-                    if tm.is_collidable(nx, ny):
-                        continue
-                    t2 = tm.get_tile(nx, ny)
-                    if t2.sector == sector and t2.arena == arena:
-                        return True
-            return False
-
-        # If spatial memory is empty or only structural, refresh from tiles
-        if not available_objects or all(o in structural for o in available_objects):
+        if not available_objects:
             available_objects = tile_scan_objects()
-
-        # Build candidate options: prefer non-structural and reachable
-        non_struct = [o for o in available_objects if o not in structural]
-        non_struct_reachable = [o for o in non_struct if is_reachable_object(o)]
-        object_options_for_prompt = non_struct_reachable or non_struct or available_objects or ["floor"]
 
         # Compute a sensible default
         default_object = None
         if sector == current_sector and arena == current_arena:
             try:
                 current_object = world.tile_manager.get_tile_path(agent.position, "game_object").split(":")[-1]
-                if current_object in object_options_for_prompt:
+                if current_object in available_objects:
                     default_object = current_object
             except Exception:
                 pass
         if not default_object:
-            default_object = object_options_for_prompt[0]
+            default_object = available_objects[0] if available_objects else ""
 
-        logger.debug(
-            "[Planner] Object options (non_struct=%d, reachable=%d): %s",
-            len(non_struct),
-            len(non_struct_reachable),
-            object_options_for_prompt,
-        )
+        logger.debug("[Planner] Object options: %s", available_objects)
 
         object_prompt_context = {
             "agent": agent.get_state(),
             "arena": arena,
-            "available_objects": object_options_for_prompt,
+            "available_objects": available_objects,
             "task_description": current_task_desc
         }
-        object_prompt = self._render_prompt("action_game_object.txt", object_prompt_context)
-        logger.debug(f"[Planner] Object prompt =>\n{object_prompt}")
-        raw_object = self.model.generate(
-            object_prompt,
-            max_tokens=32,
-            stop=["User:", "###"],
-            temperature=0.1,
-            top_p=0.5,
-            allowed_strings=object_options_for_prompt,
-        ).strip()
-        logger.debug(
-            "[Planner] Object raw output='%s', options=%s",
-            raw_object,
-            object_options_for_prompt,
-        )
-        game_object = self._pick_from_options(
-            raw_object,
-            object_options_for_prompt,
-            default_object,
-        )
+        if not available_objects:
+            logger.debug("[Planner] No objects available, using default='%s' for task='%s'", default_object or "", current_task_desc)
+            game_object = default_object
+        else:
+            object_prompt = self._render_prompt("action_game_object.txt", object_prompt_context)
+            logger.debug(f"[Planner] Object prompt =>\n{object_prompt}")
+            raw_object = self.model.generate(
+                object_prompt,
+                max_tokens=32,
+                stop=["User:", "###"],
+                temperature=0.0,
+                top_p=1.0,
+                allowed_strings=available_objects,
+            ).strip()
+            logger.debug("[Planner] Object raw output='%s', options=%s", raw_object, available_objects)
+            game_object = self._pick_from_options(raw_object, available_objects, default_object)
 
         if available_arenas and arena not in available_arenas:
             logger.debug("[Planner] Adjusted arena '%s' not in available list, using default '%s'", arena, default_arena)
@@ -560,11 +534,13 @@ class ModularPlanner(IPlanner):
             logger.debug("[Planner] Adjusted object '%s' not in available list, using default '%s'", game_object, default_object)
             game_object = default_object
 
-        address = f"{world.name}:{sector}:{arena}:{game_object}"
+        # Build address; drop object if none chosen to target the arena generally
+        address = f"{world.name}:{sector}:{arena}" + (f":{game_object}" if game_object else "")
 
-        duration = min(60, max(5, remaining_minutes))  # cap and floor to reasonable bounds
+        duration = min(60, max(5, remaining_minutes))
 
         try:
+            logger.debug(f"[Planner] Generating event triple for action '{current_task_desc}'...")
             triples = self.event_triples.generate_event(agent, current_task_desc)
             if triples:
                 s, p, o = triples[0]
@@ -585,6 +561,7 @@ class ModularPlanner(IPlanner):
             obj_desc = self._generate_object_interaction(agent, game_object, current_task_desc)
             agent.short_term_memory.action.object_interaction.description = obj_desc
             obj_triples = self.event_triples.generate_event(agent, obj_desc)
+            logger.debug(f"[Planner] Object interaction triples: {obj_triples}")
             if obj_triples:
                 s, p, o = obj_triples[0]
                 agent.short_term_memory.action.object_interaction.event = Event(s, p, o, obj_desc)
@@ -593,7 +570,17 @@ class ModularPlanner(IPlanner):
 
         try:
             summary = f"From {time_key} for {duration} minutes, {agent.name} is {current_task_desc}."
-            micro = self.generate_microtasks(agent, world, summary)
+            end_time = (now + timedelta(minutes=duration)).strftime("%H:%M")
+            micro = self.generate_microtasks(
+                agent,
+                world,
+                task_description=current_task_desc,
+                start_time=time_key,
+                end_time=end_time,
+                duration_minutes=duration,
+                sector=sector,
+                arena=arena,
+            )
             agent.short_term_memory.action.subtasks = self._parse_microtasks_text(micro)
         except Exception as e:
             logger.debug(f"[Planner] Microtasks not generated: {e}")
@@ -639,6 +626,7 @@ class ModularPlanner(IPlanner):
             options,
         )
         return chosen
+    
     def _get_current_task_from_schedule(self, agent: Agent) -> Tuple[str, int]:
         """
         Determine the current task and remaining duration using the hourly schedule
@@ -751,53 +739,107 @@ class ModularPlanner(IPlanner):
         logger.info("[Planner] Deciding whether to react to an event...")
         event = context_bundle["current_event"]
         try:
-            max_prompt_mem = int(os.environ.get("MAX_PROMPT_MEMORIES", "30"))
+            max_prompt_mem = int(os.environ.get("MAX_PROMPT_MEMORIES", "20"))
         except Exception:
-            max_prompt_mem = 30
+            max_prompt_mem = 20
+
         memories = [
-            n.event.description
-            for n in context_bundle.get("context_nodes", [])
+            n.event.description for n in context_bundle.get("context_nodes", [])
             if getattr(n, "event", None) and getattr(n.event, "description", None)
-        ][: max(0, max_prompt_mem)]
+        ][:max(0, max_prompt_mem)]
 
         now = agent.short_term_memory.current_time
+        current_time = now.strftime("%B %d, %Y, at %I:%M %p") if now else "an unknown hour"
         current_desc = (agent.short_term_memory.action.description or "").lower()
-        if now and now.hour >= 23:
-            return None
-        if "sleep" in current_desc or "in bed" in current_desc:
-            return None
+        # Minimal guard to avoid overlapping chats; other constraints handled in prompt
         if agent.short_term_memory.action.chat.with_whom:
+            logger.debug("[Planner] Agent is in a chat; skipping reaction.")
             return None
+
+        # Build move targets from spatial memory (with tile-scan fallbacks)
+        move_targets: List[str] = []
+        world_name = world.name
+        sectors = agent.spatial_memory.get_accessible_sectors(world_name) or []
+        if not sectors:
+            try:
+                tm = world.tile_manager
+                seen: set[str] = set()
+                for x in range(tm.width):
+                    for y in range(tm.height):
+                        t = tm.get_tile(x, y)
+                        if t.sector:
+                            seen.add(t.sector)
+                sectors = sorted(seen)
+            except Exception:
+                sectors = []
+        try:
+            tm = world.tile_manager
+        except Exception:
+            tm = None
+        dedup: set[str] = set()
+        for s in sectors:
+            addr2 = f"{world_name}:{s}"
+            if addr2 not in dedup:
+                move_targets.append(addr2)
+                dedup.add(addr2)
+            arenas = agent.spatial_memory.get_accessible_arenas(world_name, s) or []
+            if not arenas and tm is not None:
+                try:
+                    poss = tm.find_positions(sector=s, include_collidable=True)
+                    seen_arenas: set[str] = set()
+                    for (x, y) in poss:
+                        a = tm.get_tile(x, y).arena
+                        if a and a not in seen_arenas:
+                            seen_arenas.add(a)
+                    arenas = sorted(seen_arenas)
+                except Exception:
+                    arenas = []
+            for a in arenas:
+                addr3 = f"{world_name}:{s}:{a}"
+                if addr3 not in dedup:
+                    move_targets.append(addr3)
+                    dedup.add(addr3)
 
         context = {
             "agent": agent.get_state(),
             "event": {
                 "subject": event.subject,
                 "predicate": event.predicate or "is",
-                "object": event.object or "someone",
-                "description": event.description
+                "object": event.object or "idle",
+                "description": event.description,
             },
-            "memories": memories
+            "memories": memories,
+            "current_time": current_time,
+            "current_action": current_desc,
+            "in_chat": bool(agent.short_term_memory.action.chat.with_whom),
+            "move_targets": move_targets,
         }
 
         prompt = self._render_prompt("should_react_to_event.txt", context)
         logger.debug(f"[Planner] Reaction prompt =>\n{prompt}")
-        allowed = [
-            f"chat with {event.subject}",
-            *( [f"chat with {event.object}"] if event.object else [] ),
-            "observe",
-            "help",
-            "follow",
-            "wait",
-            "ignore",
-        ]
+
+        allowed_cmds: List[str] = []
+        try:
+            subj = (event.subject or "someone").strip()
+            obj = (event.object or "surroundings").strip() or "surroundings"
+            allowed_cmds = [
+                f"chat with {subj}",
+                f"help {subj}",
+                f"follow {subj}",
+                f"observe {obj}",
+                "wait",
+                "ignore",
+            ] + [f"move to {addr}" for addr in context.get("move_targets", [])]
+        except Exception:
+            allowed_cmds = []
+
         response = self.model.generate(
             prompt,
-            max_tokens=16,
-            stop=["\n", "User:", "###"],
+            max_tokens=100,
+            stop=["\n", "###"],
             temperature=0.0,
-            top_p=0.5,
-            allowed_strings=allowed,
+            top_p=0.7,
+            allowed_strings=allowed_cmds or None,
         )
         reaction = response.strip()
         logger.debug(f"[Planner] Reaction decision: {reaction}")
@@ -856,6 +898,7 @@ class ModularPlanner(IPlanner):
             agent.short_term_memory.action.event = Event(agent.name, "chat with", target, summary)
             agent.short_term_memory.action.duration = minutes
             agent.short_term_memory.action.start(now)
+            logger.debug(f"[Planner] Planned action to chat with {target} for {minutes} minutes. Summary: {summary}")
 
             # Minimal symmetric chat state on the target agent
             try:
@@ -870,43 +913,55 @@ class ModularPlanner(IPlanner):
                     target_agent.short_term_memory.action.start(now)
                     if meeting_addr:
                         target_agent.short_term_memory.action.address = meeting_addr
+                        logger.debug(f"[Planner] Meeting address for chat set to {meeting_addr}.")
+                    logger.debug(f"[Planner] Notified {target_agent.name} action to chat with {agent.name}.")
             except Exception:
                 pass
 
         elif reaction_mode.startswith("wait"):
+            logger.debug(f"[Planner] Setting up wait reaction to event: {event.subject} {event.predicate} {event.object}")
             agent.short_term_memory.action.description = "waiting quietly"
             agent.short_term_memory.action.event = Event(agent.name, "is", "waiting", "The agent decides to wait quietly.")
             agent.short_term_memory.action.duration = 10
             agent.short_term_memory.action.start(now)
+            logger.debug(f"[Planner] Planned action to wait for 10 minutes.")
 
         elif reaction_mode.startswith("move to"):
+            logger.debug(f"[Planner] Setting up move to reaction to event: {event.subject} {event.predicate} {event.object}")
             location = reaction_mode[len("move to "):].strip() or "somewhere"
             agent.short_term_memory.action.description = f"moving to {location}"
             agent.short_term_memory.action.event = Event(agent.name, "move to", location, f"{agent.name} heads toward {location}.")
             agent.short_term_memory.action.duration = 15
             agent.short_term_memory.action.address = location
             agent.short_term_memory.action.start(now)
+            logger.debug(f"[Planner] Planned action to move to {location} for 15 minutes.")
 
         elif reaction_mode.startswith("observe"):
+            logger.debug(f"[Planner] Setting up observe reaction to event: {event.subject} {event.predicate} {event.object}")
             target = event.object or "surroundings"
             agent.short_term_memory.action.description = f"observing {target}"
             agent.short_term_memory.action.event = Event(agent.name, "observe", target, f"{agent.name} watches {target} closely.")
             agent.short_term_memory.action.duration = 5
             agent.short_term_memory.action.start(now)
+            logger.debug(f"[Planner] Planned action to observe of {target} for 5 minutes.")
 
         elif reaction_mode.startswith("help"):
+            logger.debug(f"[Planner] Setting up help reaction to event: {event.subject} {event.predicate} {event.object}")
             target = event.object or "someone"
             agent.short_term_memory.action.description = f"helping {target}"
             agent.short_term_memory.action.event = Event(agent.name, "help", target, f"{agent.name} offers help to {target}.")
             agent.short_term_memory.action.duration = 10
             agent.short_term_memory.action.start(now)
+            logger.debug(f"[Planner] Planned action to help for {target} for 10 minutes.")
 
         elif reaction_mode.startswith("follow"):
+            logger.debug(f"[Planner] Setting up follow reaction to event: {event.subject} {event.predicate} {event.object}")
             target = event.object or "someone"
             agent.short_term_memory.action.description = f"following {target}"
             agent.short_term_memory.action.event = Event(agent.name, "follow", target, f"{agent.name} quietly follows {target}.")
             agent.short_term_memory.action.duration = 10
             agent.short_term_memory.action.start(now)
+            logger.debug(f"[Planner] Planned action to follow of {target} for 10 minutes.")
 
         else:
             logger.info(f"[Planner] No handler for reaction: {reaction_mode}. Keeping current plan.")
@@ -920,6 +975,7 @@ class ModularPlanner(IPlanner):
         }
         prompt = self._render_prompt("object_interaction.txt", context)
         response = self.model.generate(prompt, max_tokens=80, stop=["\n", "</obj>", "###"]).strip()
+        logger.debug(f"[Planner] Object interaction response: {response}")
         return response
 
     def _parse_microtasks_text(self, text: str) -> List[str]:

@@ -1,26 +1,35 @@
-### System:
-You are a decision-making module that determines whether the agent should respond to an observed event.
+### System
+You decide how an NPC in a tiny medieval forest hamlet reacts to an observed event. Consider traits, memories, current action, and time. Keep within medieval constraints (no modern items or markets).
 
-### Agent:
+### Agent
 - Name: {{ agent.name }}
 - Traits: {{ agent.traits }}
+- Current action: {{ current_action or 'idle' }}
+- In conversation now: {{ 'yes' if in_chat else 'no' }}
 - Memories:
-{% for mem in memories %}
-- {{ mem }}
+{% for mem in memories %}- {{ mem }}
 {% endfor %}
 
-### Event:
-{{ event.subject }} {{ event.predicate }} {{ event.object }} – "{{ event.description }}"
+### Event
+{{ event.subject }} {{ event.predicate }} {{ event.object }} — "{{ event.description }}"
 
-### Instructions:
-Decide what the agent should do in response.
-Return exactly one of the following options, with no extra text:
-chat with {{ event.subject }}
-{% if event.object %}chat with {{ event.object }}
-{% endif %}observe
-help
-follow
-wait
-ignore
+### World
+- Current time: {{ current_time }}
+{% if move_targets %}- MOVE_TARGETS (valid destinations):
+{{ move_targets | join("\n") }}
+{% endif %}
 
-### Assistant:
+### Rules (strict)
+- First, reason step by step internally; then return only the final command on a single line.
+- Return EXACTLY ONE of the following commands (no explanations, no quotes):
+  - chat with {{ event.subject }}
+  - help {{ event.subject }}
+  - follow {{ event.subject }}
+  - observe {{ event.object or 'surroundings' }}
+  - move to <one item from MOVE_TARGETS>
+  - wait
+  - ignore
+- If already in a conversation or clearly sleeping, return "ignore".
+- Prefer medieval-appropriate social/helpful actions if relevant; otherwise use "wait" or "ignore".
+
+### Assistant

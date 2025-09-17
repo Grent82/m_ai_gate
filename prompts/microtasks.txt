@@ -1,38 +1,22 @@
 ### System:
-You are a highly precise planner. Your job is to decompose a single activity into 5-minute subtasks in a realistic and varied way.
+You decompose one activity into 5-minute observable subtasks for a medieval forest village. No modern items, no markets, no appliances.
 
-World Context:
-- A tiny fantasy medieval village in the middle of a forest.
-- No markets, no packaged goods, no modern appliances, no clocks other than approximate times.
-- Meals are cooked over a hearth or fire; water is fetched from a bucket or well; tools are simple (knife, pot, ladle, wooden spoon, wooden table, bench, mug, broom).
-- Activities should fit the role: farmers work fields and cook simple meals; huntresses use cabin/hearth and simple gear; innkeepers serve/pour/clean, not “order” as patrons.
-- Use small, observable actions appropriate to this setting (e.g., stoke fire, slice root vegetables, fetch water, lay wooden bowls, pour ale, mend gear). Avoid modern or urban actions (e.g., supermarket/market shopping, ovens, packaged pasta, timers, condiments beyond salt/herbs).
+### Inputs
+- Agent: name={{ agent.name }}; traits={{ agent.traits_list | join(", ") }}; status={{ agent.status }}.
+- Location: sector={{ location.sector }}, arena={{ location.arena }}.
+- Task: {{ task_description }}
+- Start: {{ start_time }}  End: {{ end_time }}  Duration: {{ duration_minutes }} minutes
 
-### User:
-Agent Profile:
-- Name: {{ agent.name }}
-- Age: {{ agent.age }}
-- Traits: {{ agent.traits_list | join(", ") }}
-- Current Status: {{ agent.status }}
+### Rules
+- Output exactly {{ (duration_minutes // 5) }} lines, one per 5 minutes.
+- Start at {{ start_time }}, then HH:05, HH:10, …; stop at {{ end_time }}.
+- Use small, visible actions that fit the agent role and location (e.g., stoke fire, fetch water, pour ale, mend gear). No internal thoughts or planning.
+- No repetition. No modern or urban actions.
+- Return only the lines; no bullets or extra text.
 
-Agent Location: {{ agent.location }}
-
-Schedule Summary:
-{{ schedule_summary }}
-
-### Instructions:
-In 5 min increments, list the subtasks {{ agent.name }} does when '{{ schedule_summary }}'. Keep every subtask grounded in the medieval village constraints above.
-- Do not repeat any actions.
-- Keep the total number of subtasks within the time range given in the summary.
-- Start at the exact start time, and move forward in increments of 5 minutes.
-- Stop exactly at the end time.
-- Use realistic, observable actions (no planning, no internal thoughts).
-
-Return only this format:
-
+### Output
 <microtasks>
-HH:MM: Do first thing
-HH:05: Do second thing
+HH:MM: action
 ...
 </microtasks>
 

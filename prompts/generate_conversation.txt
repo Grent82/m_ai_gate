@@ -1,34 +1,27 @@
 ### System
-You write brief, grounded conversations between two medieval NPC villagers in a tiny forest hamlet.
+You write lively, alternating dialogue between two medieval villagers. No narration or brackets. No modern items or markets.
 
 ### World
-- Date/Time: {{ world.date }} {{ world.time }}
+- Date/Time: {{ world.date }} {{ world.time }}{% if world.weather %}; Weather: {{ world.weather }}{% endif %}
 - Location: {{ location.sector }} — {{ location.arena }}
-- Constraints: no modern items; no markets; cooking over hearth; water from bucket/well; simple tools; keep dialogue in-world.
-{% if world.weather %}- Weather: {{ world.weather }}{% endif %}
 
 ### Characters
 - {{ agent.name }}: age={{ agent.age }}; traits={{ agent.traits }}; lifestyle={{ agent.lifestyle }}; status={{ agent.status }}; background={{ agent.background }}.
 - {{ target_agent.name }}: age={{ target_agent.age }}; traits={{ target_agent.traits }}; lifestyle={{ target_agent.lifestyle }}; status={{ target_agent.status }}; background={{ target_agent.background }}.
 
 ### Context
-- Prior conversation summary: {{ prior_summary or 'None yet today.' }}
-{% if relationship %}- Relationship: {{ relationship }}{% endif %}
-{% if last_chat_time %}- Last chatted at: {{ last_chat_time }}{% endif %}
-{% if last_chat_excerpt %}- Last chat excerpt:\n{{ last_chat_excerpt }}{% endif %}
-- {{ agent.name }}’s current action: {{ agent_action or 'idle' }}
-- {{ target_agent.name }}’s current action: {{ target_action or 'idle' }}
-- What {{ agent.name }} recently thought about {{ target_agent.name }}: {{ agent_thoughts_about_target or 'no recent thoughts recorded' }}
-- What {{ target_agent.name }} recently thought about {{ agent.name }}: {{ target_thoughts_about_agent or 'no recent thoughts recorded' }}
+- Prior: {{ prior_summary or 'None yet today.' }}{% if relationship %}; Relationship: {{ relationship }}{% endif %}
+- Last chat: {% if last_chat_time %}{{ last_chat_time }}{% else %}none{% endif %}{% if last_chat_excerpt %}\n{{ last_chat_excerpt }}{% endif %}
+- Actions: {{ agent.name }}={{ agent_action or 'idle' }}, {{ target_agent.name }}={{ target_action or 'idle' }}
+- Thoughts: {{ agent.name }}→{{ target_agent.name }}={{ agent_thoughts_about_target or '—' }}; {{ target_agent.name }}→{{ agent.name }}={{ target_thoughts_about_agent or '—' }}
 
-### Instructions
-- Write up to {{ max_turns }} alternating lines, starting with {{ agent.name }}.
-- Each line: 4–12 words, present tense, natural and location-appropriate.
-- Use only these speaker names exactly: "{{ agent.name }}" and "{{ target_agent.name }}".
-- Strictly alternate speakers; do not repeat any line or ask redundant questions.
-- Tie dialogue to current actions, prior summary, and location; avoid modern items or markets.
-- No narration, stage directions, quotes, tags, role tokens, or meta.
-- If context is unclear, ask exactly one short in‑world clarifying question (counts as your turn).
+### Rules
+- Up to {{ max_turns }} lines, strictly alternating, start with {{ agent.name }}.
+- 4–12 words per line, present tense, natural, grounded in location/actions.
+- Use only speaker names exactly: "{{ agent.name }}" and "{{ target_agent.name }}".
+- If feelings exist, add subtle flirtation or rivalry tied to context.
+- If unclear, ask exactly one short in‑world clarifying question (counts as a turn).
+- No narration, brackets, or out‑of‑world references.
 
 ### Format
 {{ agent.name }}: <line>

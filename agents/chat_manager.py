@@ -273,7 +273,13 @@ class ChatManager:
             logger.debug("[Chat] Template render failed: %s", e)
             prompt = ""
         try:
-            raw = self.model.generate(prompt, max_tokens=300, stop=["</conversation>", "###"]).strip()
+            raw = self.model.generate(
+                prompt,
+                max_tokens=300,
+                stop=["</conversation>", "###"],
+                temperature=0.7,
+                top_p=0.95,
+            ).strip()
         except Exception as e:
             logger.debug("[Chat] Model generation failed: %s", e)
             raw = ""

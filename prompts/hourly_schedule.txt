@@ -15,9 +15,10 @@ Instructions:
 - Include medieval activities like breaks, simple meals by the hearth, tending fields/hunting/serving at tavern, and short walks.
 - Avoid modern or urban tasks (no markets, no ovens, no packaged foods, no vehicles).
 - Keep responses concise, without extra explanations.
+- Do not include any parenthetical tags or category notes.
 
 **Output Format:**
-07:00 - Wake and tend the fire 08:00 - Work in the field 09:00 - Fetch water and sharpen tools 10:00 - Continue field work 11:00 - Prepare simple meal at hearth 12:00 - Midday meal 13:00 - Resume work (role-appropriate) ... 22:00 - Sleep
+07:00 - Wake and tend the fire 08:00 - Work in the field 09:00 - Fetch water and sharpen tools 10:00 - Continue field work 11:00 - Prepare simple meal at hearth 12:00 - Midday meal 13:00 - Resume work ... 22:00 - Sleep
 
 
 
