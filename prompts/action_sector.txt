@@ -12,12 +12,14 @@ Choose the single best sector from OPTIONS for the agent's current task.
   - forest/hunt/game/trap/track → sector containing "Forest".
   - home/house/cabin/hut/cottage → sector containing "House" or "Cabin".
 - Prefer specific sectors over generic travel areas like "Outside" or "Village Outskirts/Path" when a fit exists.
-- Stay in the current sector only if it clearly fits better than alternatives.
+- Base the choice on the task and OPTIONS. Do not assume occupations from the agent name.
+- Consider the current sector only as a final tie‑breaker when two options fit equally well.
 - Break ties by choosing the longest option name.
 - Return exactly one item from OPTIONS; do not invent names; do not return empty.
 
 ### Few‑Shot Examples
-Example 1:
+Example 1 (ignore current sector):
+Current sector: Hunter's Cabin
 Task: Drink at the tavern or trade goods
 OPTIONS:
 Hunter's Cabin
@@ -26,7 +28,8 @@ The Drunken Boar Tavern
 Farmer's Field
 Answer: The Drunken Boar Tavern
 
-Example 2:
+Example 2 (ignore agent role):
+Agent: Ayla the Huntress
 Task: Tend to crops in the fields
 OPTIONS:
 Farmer's House
