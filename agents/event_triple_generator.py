@@ -98,4 +98,5 @@ class EventTripleGenerator:
                 cleaned.append((s_n, p_n, o_n))
                 logger.debug(f"[EventTriple] Cleaned triple: {(s_n, p_n, o_n)}")
 
+        logger.info(f"[EventTriple] Generated {len(cleaned)} triples.")
         return cleaned

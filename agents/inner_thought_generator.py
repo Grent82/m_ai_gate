@@ -22,7 +22,7 @@ class InnerThoughtGenerator:
 
         prompt = template.render(context)
 
-        response = self.model.generate(prompt, max_tokens=100, stop=["</thought>", "User:", "###"])
+        response = self.model.generate(prompt, max_tokens=150, stop=["</thought>", "User:", "###"])
         logger.debug(f"[InnerThought] Model response: {response}")
 
         return response.strip().replace("<thought>", "").replace("</thought>", "").strip()

@@ -54,7 +54,7 @@ class ModularPlanner(IPlanner):
             focused_event = self._select_focused_event(retrieved) # todo
 
         if focused_event:
-            reaction = self._decide_reaction(agent, focused_event)
+            reaction = self._decide_reaction(agent, world, focused_event)
             if reaction:
                 if reaction.strip().lower().startswith("ignore"):
                     logger.debug("[Planner] Reaction was 'ignore'; keeping current plan.")
@@ -404,8 +404,8 @@ class ModularPlanner(IPlanner):
             sector_prompt,
             max_tokens=32,
             stop=["User:", "###"],
-            temperature=0.0,
-            top_p=1.0,
+            temperature=0.25,
+            top_p=0.9,
             allowed_strings=available_sectors,
         ).strip()
         logger.debug( "[Planner] Sector raw output='%s', options=%s, current='%s'", raw_sector, sector_prompt_context["available_sectors"], sector_prompt_context["current_sector"], )
@@ -452,8 +452,8 @@ class ModularPlanner(IPlanner):
             arena_prompt,
             max_tokens=32,
             stop=["User:", "###"],
-            temperature=0.0,
-            top_p=1.0,
+            temperature=0.25,
+            top_p=0.9,
             allowed_strings=available_arenas,
         ).strip()
         logger.debug(
@@ -520,8 +520,8 @@ class ModularPlanner(IPlanner):
                 object_prompt,
                 max_tokens=32,
                 stop=["User:", "###"],
-                temperature=0.0,
-                top_p=1.0,
+                temperature=0.25,
+                top_p=0.9,
                 allowed_strings=available_objects,
             ).strip()
             logger.debug("[Planner] Object raw output='%s', options=%s", raw_object, available_objects)
@@ -735,7 +735,7 @@ class ModularPlanner(IPlanner):
 
 
 
-    def _decide_reaction(self, agent: Agent, context_bundle: Dict[str, List[MemoryNode]]) -> Optional[str]:
+    def _decide_reaction(self, agent: Agent, world: World, context_bundle: Dict[str, List[MemoryNode]]) -> Optional[str]:
         logger.info("[Planner] Deciding whether to react to an event...")
         event = context_bundle["current_event"]
         try:
@@ -756,7 +756,6 @@ class ModularPlanner(IPlanner):
             logger.debug("[Planner] Agent is in a chat; skipping reaction.")
             return None
 
-        # Build move targets from spatial memory (with tile-scan fallbacks)
         move_targets: List[str] = []
         world_name = world.name
         sectors = agent.spatial_memory.get_accessible_sectors(world_name) or []
