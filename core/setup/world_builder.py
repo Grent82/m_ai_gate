@@ -109,7 +109,7 @@ class WorldBuilder:
             doors=[(10, 1)]  # north door
         )
 
-        # Tavern
+        # Tavern Hall (main room)
         build_room(
             4, 8, 12, 16,
             sector="The Drunken Boar Tavern",
@@ -121,15 +121,28 @@ class WorldBuilder:
                 (7, 11, "bench"),
                 (8, 11, "bench"),
                 (6, 12, "fireplace"),
-                (11, 15, "bed"),
-                # Add a couple more seating options and an extra table
+                # Additional seating
                 (6, 10, "chair"),
                 (6, 13, "chair"),
                 (10, 14, "table"),
                 (9, 14, "chair"),
                 (11, 14, "chair")
             ],
-            doors=[(7, 8)]  # north door
+            # front door and internal door on the east wall to the private room (12,14)
+            doors=[(7, 8), (12, 14)]  # north door and side door to private room
+        )
+
+        # Tavern Private Room (for the innkeeper), attached east of the hall
+        build_room(
+            13, 12, 17, 16,
+            sector="The Drunken Boar Tavern",
+            arena="Private Room",
+            objects=[
+                (15, 14, "bed"),
+                (16, 14, "wooden chest")
+            ],
+            # Door aligned with hall opening at (12,14)
+            doors=[(13, 14)]
         )
 
         # Add field area (next to farmer's house)

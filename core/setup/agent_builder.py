@@ -16,7 +16,22 @@ class AgentBuilder:
     def build_medieval_agents(self) -> list:
         agents = []
 
-        def create_agent(name, age, traits, lifestyle, position, memories, whisper, background, status, sex: str):
+        def create_agent(
+            name,
+            age,
+            traits,
+            lifestyle,
+            position,
+            memories,
+            whisper,
+            background,
+            status,
+            sex: str,
+            first_name: str,
+            last_name: str,
+            learned: str,
+            living_area: str,
+        ):
             agent = Agent(
                 name=name,
                 age=age,
@@ -26,6 +41,10 @@ class AgentBuilder:
                 background=background,
                 status=status,
                 sex=sex,
+                first_name=first_name,
+                last_name=last_name,
+                learned=learned,
+                living_area=living_area,
             )
             agent.short_term_memory.current_time = datetime.now()
 
@@ -69,7 +88,13 @@ class AgentBuilder:
                 "A farmer in a tiny forest hamlet; inherited his father's barley and cabbage field beside his house; lives alone without family."
             ),
             status="content, slightly tired from fieldwork",
-            sex="male"
+            sex="male",
+            first_name="Thomas",
+            last_name="Miller",
+            learned=(
+                "Thomas Miller is a diligent farmer skilled in plowing, sowing, and harvesting. "
+            ),
+            living_area="MedievalVillage:Farmer's House:Main Room",
         ))
 
         agents.append(create_agent(
@@ -93,7 +118,13 @@ class AgentBuilder:
                 "A solitary huntress living at the forest's edge; skilled with bow and traps; fiercely self-sufficient; lives alone without family."
             ),
             status="alert, reserved",
-            sex="female"
+            sex="female",
+            first_name="Ayla",
+            last_name="Hart",
+            learned=(
+                "Ayla Hart is a capable huntress proficient in tracking, trapping, and bowcraft. "
+            ),
+            living_area="MedievalVillage:Hunter's Cabin:Main Room",
         ))
 
         agents.append(create_agent(
@@ -120,7 +151,13 @@ class AgentBuilder:
                 "Innkeeper of The Drunken Boar Tavern in a tiny forest hamlet; keeper of stories and village gossip; lives alone without family."
             ),
             status="cheerful, attentive to guests",
-            sex="male"
+            sex="male",
+            first_name="Garrick",
+            last_name="Brewer",
+            learned=(
+                "Garrick Brewer is an innkeeper skilled in serving ale, keeping accounts, and hosting guests. "
+            ),
+            living_area="MedievalVillage:The Drunken Boar Tavern:Private Room",
         ))
 
         return agents

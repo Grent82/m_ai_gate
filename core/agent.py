@@ -8,7 +8,21 @@ from core.logger import setup_logger
 logger = setup_logger(__name__)
 
 class Agent:
-    def __init__(self, name: str, age: int, traits: Union[str, List[str]], lifestyle: str, position, background: Optional[str] = None, status: Optional[str] = None, sex: Optional[str] = None):
+    def __init__(
+        self,
+        name: str,
+        age: int,
+        traits: Union[str, List[str]],
+        lifestyle: str,
+        position,
+        background: Optional[str] = None,
+        status: Optional[str] = None,
+        sex: Optional[str] = None,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+        learned: Optional[str] = None,
+        living_area: Optional[str] = None,
+    ):
         self.name = name
         self.age = age
         # Store traits as original string and a normalized list for prompts
@@ -19,10 +33,15 @@ class Agent:
         self.position = position
         self.lifestyle = lifestyle
 
-        # Profile/identity state (editable by identity revision)
         self.background = background or ""
         self.status = status or ""
         self.sex = (sex or "").lower()
+
+        self.first_name = first_name
+        self.last_name = last_name
+
+        self.learned = learned or ""
+        self.living_area = living_area or ""
 
         self.vision_range = 5  # todo
         self.attention_bandwidth: int = 3  # Max number of events agent can attend to
@@ -60,13 +79,17 @@ class Agent:
 
         return {
             "name": self.name,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
             "age": self.age,
             "traits": self.traits,
             "traits_list": self._traits_list,
             "lifestyle": self.lifestyle,
+            "learned": self.learned,
             "location": location,
             "memories": recent_memories,
             "background": self.background,
             "status": self.status,
             "sex": self.sex,
+            "living_area": self.living_area,
         }
