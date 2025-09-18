@@ -85,9 +85,10 @@ class WorldBuilder:
             arena="Main Room",
             objects=[
                 (2, 2, "bed"),
-                (4, 2, "fireplace"),
+                (5, 2, "fireplace"),
                 (2, 3, "table"),
-                (4, 4, "crate")
+                (5, 5, "crate"),
+                (3, 3, "chair")
             ],
             doors=[(3, 1)]  # north door
         )
@@ -99,9 +100,11 @@ class WorldBuilder:
             arena="Main Room",
             objects=[
                 (9, 2, "bed"),
-                (11, 2, "fireplace"),
+                (13, 2, "fireplace"),
                 (9, 3, "wooden chest"),
-                (11, 3, "workbench")
+                (11, 3, "workbench"),
+                (12, 4, "table"),
+                (12, 5, "chair")
             ],
             doors=[(10, 1)]  # north door
         )
@@ -118,7 +121,13 @@ class WorldBuilder:
                 (7, 11, "bench"),
                 (8, 11, "bench"),
                 (6, 12, "fireplace"),
-                (9, 12, "bed")
+                (11, 15, "bed"),
+                # Add a couple more seating options and an extra table
+                (6, 10, "chair"),
+                (6, 13, "chair"),
+                (10, 14, "table"),
+                (9, 14, "chair"),
+                (11, 14, "chair")
             ],
             doors=[(7, 8)]  # north door
         )
@@ -164,5 +173,18 @@ class WorldBuilder:
         for y in range(2, 20):
             gravel_points.add((15, y))
         lay_gravel_path(sorted(gravel_points))
+
+        tiles.set_game_object(1, 7, "water bucket")
+        tiles.set_collision(1, 7, False)
+        tiles.set_game_object(0, 3, "wood pile")
+        tiles.set_collision(0, 3, True)
+
+        # Near Hunter's Cabin (forest edge)
+        tiles.set_game_object(16, 7, "wood pile")
+        tiles.set_collision(16, 7, True)
+
+        # Outside the Tavern (south side)
+        tiles.set_game_object(5, 17, "rain barrel")
+        tiles.set_collision(5, 17, True)
 
         return world
