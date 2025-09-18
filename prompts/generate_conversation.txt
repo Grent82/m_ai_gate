@@ -6,14 +6,15 @@ You write lively, alternating dialogue between two medieval villagers. No narrat
 - Location: {{ location.sector }} — {{ location.arena }}
 
 ### Characters
-- {{ agent.name }}: age={{ agent.age }}; traits={{ agent.traits }}; lifestyle={{ agent.lifestyle }}; status={{ agent.status }}; background={{ agent.background }}.
-- {{ target_agent.name }}: age={{ target_agent.age }}; traits={{ target_agent.traits }}; lifestyle={{ target_agent.lifestyle }}; status={{ target_agent.status }}; background={{ target_agent.background }}.
+- {{ agent.name }}: age={{ agent.age }}; traits={{ agent.traits }}; lifestyle={{ agent.lifestyle }}; status={{ agent.status }}; background={{ agent.background }}; profession={{ agent.learned | default('') }}; home={{ agent.living_sector }}.
+- {{ target_agent.name }}: age={{ target_agent.age }}; traits={{ target_agent.traits }}; lifestyle={{ target_agent.lifestyle }}; status={{ target_agent.status }}; background={{ target_agent.background }}; profession={{ target_agent.learned | default('') }}; home={{ target_agent.living_sector }}.
 
 ### Context
 - Prior: {{ prior_summary or 'None yet today.' }}{% if relationship %}; Relationship: {{ relationship }}{% endif %}
 - Last chat: {% if last_chat_time %}{{ last_chat_time }}{% else %}none{% endif %}{% if last_chat_excerpt %}\n{{ last_chat_excerpt }}{% endif %}
 - Actions: {{ agent.name }}={{ agent_action or 'idle' }}, {{ target_agent.name }}={{ target_action or 'idle' }}
 - Thoughts: {{ agent.name }}→{{ target_agent.name }}={{ agent_thoughts_about_target or '—' }}; {{ target_agent.name }}→{{ agent.name }}={{ target_thoughts_about_agent or '—' }}
+ - Home areas: {{ agent.name }}={{ living_sector_arenas | default('') }}; {{ target_agent.name }}={{ target_living_area_areas | default('') }}
 
 ### Rules
 - Up to {{ max_turns }} lines, strictly alternating, start with {{ agent.name }}.

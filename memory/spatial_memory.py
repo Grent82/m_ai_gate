@@ -3,7 +3,7 @@ from typing import Dict, List
 
 from core.logger import setup_logger
 
-logger = setup_logger(__name__, log_level=logging.DEBUG)
+logger = setup_logger(__name__)
 
 
 class SpatialMemory:

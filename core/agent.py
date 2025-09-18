@@ -77,6 +77,21 @@ class Agent:
 
         location = f"({self.position[0]}, {self.position[1]})"
 
+        # Parse living area components (world:sector:arena)
+        living_world = ""
+        living_sector = ""
+        living_arena = ""
+        try:
+            parts = (self.living_area or "").split(":")
+            if len(parts) >= 1:
+                living_world = parts[0]
+            if len(parts) >= 2:
+                living_sector = parts[1]
+            if len(parts) >= 3:
+                living_arena = parts[2]
+        except Exception:
+            pass
+
         return {
             "name": self.name,
             "first_name": self.first_name,
@@ -92,4 +107,7 @@ class Agent:
             "status": self.status,
             "sex": self.sex,
             "living_area": self.living_area,
+            "living_world": living_world,
+            "living_sector": living_sector,
+            "living_arena": living_arena,
         }

@@ -2,7 +2,7 @@
 You decompose one activity into 5-minute observable subtasks for a medieval forest village. No modern items, no markets, no appliances.
 
 ### Inputs
-- Agent: name={{ agent.name }}; traits={{ agent.traits_list | join(", ") }}; status={{ agent.status }}.
+- Agent: name={{ agent.name }}; traits={{ agent.traits_list | join(", ") }}; status={{ agent.status }}; profession={{ agent.learned | default('') }}; home={{ agent.living_sector }}.
 - Location: sector={{ location.sector }}, arena={{ location.arena }}.
 - Task: {{ task_description }}
 - Start: {{ start_time }}  End: {{ end_time }}  Duration: {{ duration_minutes }} minutes
@@ -12,6 +12,7 @@ You decompose one activity into 5-minute observable subtasks for a medieval fore
 - Start at {{ start_time }}, then HH:05, HH:10, …; stop at {{ end_time }}.
 - Use small, visible actions that fit the agent role and location (e.g., stoke fire, fetch water, pour ale, mend gear). No internal thoughts or planning.
 - No repetition. No modern or urban actions.
+- Use only actions that are plausible in the given sector/arena; avoid referencing people or roles that do not exist locally.
 - Return only the lines; no bullets or extra text.
 
 ### Output

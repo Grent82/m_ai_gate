@@ -14,6 +14,8 @@ Agent Profile:
 - Lifestyle: {{agent.lifestyle}}
 - Wake-up time: {{ wake_time }}
 - 
+ - Home: {{ agent.living_sector }} — areas: {{ living_sector_arenas | default('') }}
+ - Profession (learned): {{ agent.learned | default('') }}
 
 
 Agent Memories:

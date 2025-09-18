@@ -7,6 +7,8 @@ Agent Name: {{ agent.name }}
 Wake-up Time: {{ wake_time }}
 Current Day Overview:
 {{ day_blocks }}
+Home: {{ agent.living_sector }} — areas: {{ living_sector_arenas | default('') }}
+Profession (learned): {{ agent.learned | default('') }}
 
 Instructions:
 - Start the plan from the wake-up time, using 24-hour format (HH:MM).

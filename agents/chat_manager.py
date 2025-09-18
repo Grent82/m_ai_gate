@@ -252,6 +252,35 @@ class ChatManager:
         agent_th_about_target = self._recent_thoughts_about(agent, target)
         target_th_about_agent = self._recent_thoughts_about(target_agent, agent.name) if target_agent else None
 
+        # Gather arenas for agent's living sector (for prompt context)
+        def sector_arenas(sector: Optional[str]) -> List[str]:
+            if not sector:
+                return []
+            try:
+                arenas = agent.spatial_memory.get_accessible_arenas(world.name, sector) or []
+                if arenas:
+                    return arenas
+            except Exception:
+                pass
+            try:
+                tm = world.tile_manager
+                poss = tm.find_positions(sector=sector, include_collidable=True)
+                seen: List[str] = []
+                seen_set = set()
+                for (x, y) in poss:
+                    a = tm.get_tile(x, y).arena
+                    if a and a not in seen_set:
+                        seen.append(a)
+                        seen_set.add(a)
+                return seen
+            except Exception:
+                return []
+
+        agent_living_sector = getattr(agent, "living_sector", "") if hasattr(agent, "living_sector") else (agent.get_state().get("living_sector", ""))
+        target_living_sector = getattr(target_agent, "living_sector", "") if target_agent else ""
+        living_sector_arenas = ", ".join(sector_arenas(agent_living_sector)) if agent_living_sector else ""
+        target_living_area_areas = ", ".join(sector_arenas(target_living_sector)) if target_living_sector else ""
+
         context = {
             "agent": agent_state,
             "target_agent": target_state,
@@ -266,6 +295,8 @@ class ChatManager:
             "agent_thoughts_about_target": agent_th_about_target,
             "target_thoughts_about_agent": target_th_about_agent,
             "max_turns": max_turns,
+            "living_sector_arenas": living_sector_arenas,
+            "target_living_area_areas": target_living_area_areas,
         }
         try:
             prompt = self.env.get_template("generate_conversation.txt").render(context)
