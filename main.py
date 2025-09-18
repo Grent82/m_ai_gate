@@ -37,6 +37,8 @@ def run_agent() -> None:
     executor = Executor(model)
 
     world = WorldBuilder().setup_medieval_village_world()
+    world.current_time = world.current_time.replace(hour=15, minute=0)
+
     agents = AgentBuilder(InnerThoughtGenerator(model), EventTripleGenerator(model)).build_medieval_agents()
     for agent in agents:
         world.add_agent(agent)

@@ -12,7 +12,7 @@ class World:
         self.tile_manager = TileManager(width, height, name)
         self.agents = []
         # Simulated timekeeping
-        self.current_time = datetime.now().replace(hour=9 ,minute=0, second=0, microsecond=0)
+        self.current_time = datetime.now().replace(second=0, microsecond=0)
         self.date = self.current_time.strftime("%A, %B %d")
         self.weather = "Sunny"  # TODO: world weather system; maybe through a llm
         self.is_first_day = True
