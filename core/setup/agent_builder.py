@@ -17,7 +17,9 @@ class AgentBuilder:
         agents = []
 
         def create_agent(
-            name,
+            first_name: str,
+            last_name: str,
+            sex: str,
             age,
             traits,
             lifestyle,
@@ -26,23 +28,19 @@ class AgentBuilder:
             whisper,
             background,
             status,
-            sex: str,
-            first_name: str,
-            last_name: str,
             learned: str,
             living_area: str,
         ):
             agent = Agent(
-                name=name,
+                first_name=first_name,
+                last_name=last_name,
+                sex=sex,
                 age=age,
                 traits=traits,
                 lifestyle=lifestyle,
                 position=position,
                 background=background,
                 status=status,
-                sex=sex,
-                first_name=first_name,
-                last_name=last_name,
                 learned=learned,
                 living_area=living_area,
             )
@@ -65,7 +63,9 @@ class AgentBuilder:
             return agent
 
         agents.append(create_agent(
-            name="Thomas the Farmer",
+            first_name="Thomas",
+            last_name="Miller",
+            sex="male",
             age=45,
             traits="hardworking, humble, kind",
             lifestyle="Wakes up early, tends to the fields, and eats dinner by the fireplace at sunset.",
@@ -88,9 +88,6 @@ class AgentBuilder:
                 "A farmer in a tiny forest hamlet; inherited his father's barley and cabbage field beside his house; lives alone without family."
             ),
             status="content, slightly tired from fieldwork",
-            sex="male",
-            first_name="Thomas",
-            last_name="Miller",
             learned=(
                 "Thomas Miller is a diligent farmer skilled in plowing, sowing, and harvesting. "
             ),
@@ -98,7 +95,9 @@ class AgentBuilder:
         ))
 
         agents.append(create_agent(
-            name="Ayla the Huntress",
+            first_name="Ayla",
+            last_name="Hart",
+            sex="female",
             age=32,
             traits="silent, observant, resilient",
             lifestyle="Roams the forest at dawn, repairs gear in her cabin, and drinks occasionally at the tavern.",
@@ -118,9 +117,6 @@ class AgentBuilder:
                 "A solitary huntress living at the forest's edge; skilled with bow and traps; fiercely self-sufficient; lives alone without family."
             ),
             status="alert, reserved",
-            sex="female",
-            first_name="Ayla",
-            last_name="Hart",
             learned=(
                 "Ayla Hart is a capable huntress proficient in tracking, trapping, and bowcraft. "
             ),
@@ -128,7 +124,9 @@ class AgentBuilder:
         ))
 
         agents.append(create_agent(
-            name="Garrick the Innkeeper",
+            first_name="Garrick",
+            last_name="Brewer",
+            sex="male",
             age=52,
             traits="jovial, talkative, wise",
             lifestyle="Wakes late, cleans the tavern, chats with guests, and enjoys telling stories in the evening.",
@@ -151,9 +149,6 @@ class AgentBuilder:
                 "Innkeeper of The Drunken Boar Tavern in a tiny forest hamlet; keeper of stories and village gossip; lives alone without family."
             ),
             status="cheerful, attentive to guests",
-            sex="male",
-            first_name="Garrick",
-            last_name="Brewer",
             learned=(
                 "Garrick Brewer is an innkeeper skilled in serving ale, keeping accounts, and hosting guests. "
             ),

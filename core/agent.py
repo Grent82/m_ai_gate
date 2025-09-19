@@ -1,5 +1,5 @@
 from typing import Optional, Set, Tuple, List, Union
-from core.agent_action import AgentAction, Event
+from core.agent_action import Event
 from memory.long_term_memory import LongTermMemory
 from memory.short_term_memory import ShortTermMemory
 from memory.spatial_memory import SpatialMemory
@@ -10,22 +10,23 @@ logger = setup_logger(__name__)
 class Agent:
     def __init__(
         self,
-        name: str,
+        first_name: str,
+        last_name: str,
+        sex: str,
         age: int,
         traits: Union[str, List[str]],
         lifestyle: str,
         position,
         background: Optional[str] = None,
         status: Optional[str] = None,
-        sex: Optional[str] = None,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
         learned: Optional[str] = None,
         living_area: Optional[str] = None,
     ):
-        self.name = name
+        self.first_name = first_name
+        self.last_name = last_name
+        self.name = f"{first_name} {last_name}"
+        self.sex = (sex or "").lower()
         self.age = age
-        # Store traits as original string and a normalized list for prompts
         self.traits = traits if isinstance(traits, str) else ", ".join(traits)
         self._traits_list: List[str] = (
             [t.strip() for t in traits.split(",") if t.strip()] if isinstance(traits, str) else [t.strip() for t in traits]
@@ -35,10 +36,6 @@ class Agent:
 
         self.background = background or ""
         self.status = status or ""
-        self.sex = (sex or "").lower()
-
-        self.first_name = first_name
-        self.last_name = last_name
 
         self.learned = learned or ""
         self.living_area = living_area or ""
@@ -96,6 +93,7 @@ class Agent:
             "name": self.name,
             "first_name": self.first_name,
             "last_name": self.last_name,
+            "sex": self.sex,
             "age": self.age,
             "traits": self.traits,
             "traits_list": self._traits_list,
@@ -105,7 +103,6 @@ class Agent:
             "memories": recent_memories,
             "background": self.background,
             "status": self.status,
-            "sex": self.sex,
             "living_area": self.living_area,
             "living_world": living_world,
             "living_sector": living_sector,
