@@ -49,11 +49,20 @@ class ModularPlanner(IPlanner):
 
         focused_event = None
         if perceived_nodes:
+            logger.debug(f"[Planner] Perceived nodes count: {len(perceived_nodes)}")
             focused_event = self._select_focused_event_from_percepts(agent, perceived_nodes)
+
         if not focused_event and retrieved and retrieved.keys():
+            logger.debug(f"[Planner] Retrieved memory categories: {list(retrieved.keys())}")
             focused_event = self._select_focused_event(retrieved) # todo
 
         if focused_event:
+            try:
+                fe = focused_event.get("current_event") if isinstance(focused_event, dict) else None
+                focused_event_description  = getattr(fe, "description", None) or f"{getattr(fe, 'subject', '')} {getattr(fe, 'predicate', '')} {getattr(fe, 'object', '')}".strip()
+            except Exception:
+                focused_event_description  = "<unknown>"
+            logger.info(f"[Planner] Focused event for reaction: {focused_event_description }")
             reaction = self._decide_reaction(agent, world, focused_event)
             if reaction:
                 if reaction.strip().lower().startswith("ignore"):
@@ -61,15 +70,7 @@ class ModularPlanner(IPlanner):
                 else:
                     self._apply_reaction(agent, world, focused_event, reaction)
         
-        if current_action.event.predicate != "chat with":
-            agent.short_term_memory.action.chat.with_whom = None
-            agent.short_term_memory.action.chat.chat_log.clear()
-            agent.short_term_memory.action.chat.end_time = None
-
-        for name in list(agent.short_term_memory.action.chat.buffer.keys()):
-            if name != agent.short_term_memory.action.chat.with_whom and agent.short_term_memory.action.chat.buffer[name] > 0:
-                agent.short_term_memory.action.chat.buffer[name] -= 1
-
+        logger.debug(f"[Planner] Final planned action: {agent.short_term_memory.action}")
         return current_action.address or "idle"
 
     
@@ -847,19 +848,81 @@ class ModularPlanner(IPlanner):
             max_prompt_mem = int(os.environ.get("MAX_PROMPT_MEMORIES", "20"))
         except Exception:
             max_prompt_mem = 20
+        logger.debug(f"[Planner] Context Bundle keys: {list(context_bundle.keys())}")
+        logger.debug(f"[Planner] Context Bundle values: {[len(v) if isinstance(v, list) else type(v) for v in context_bundle.values()]}")
+        context_nodes = context_bundle.get("context_nodes", [])
+        logger.debug(f"[Planner] Context nodes count: {len(context_nodes)}")
+        
+        context_str = ""
+        for n in context_nodes:
+            if getattr(n, "node_type", "") == "event" and n.event and n.event.description:
+                curr_desc = n.event.description.split(" ")
+                if len(curr_desc) > 2:
+                    curr_desc[2:3] = ["was"]
+                context_str += " ".join(curr_desc) + ". "
+            elif getattr(n, "node_type", "") == "thought" and getattr(n, "event", None) and getattr(n.event, "description", None):
+                context_str += n.event.description + ". "
 
         memories = [
-            n.event.description for n in context_bundle.get("context_nodes", [])
+            n.event.description for n in context_nodes
             if getattr(n, "event", None) and getattr(n.event, "description", None)
         ][:max(0, max_prompt_mem)]
-
+        logger.debug(f"[Planner] Using {len(memories)} context memories for reaction decision.")
         now = agent.short_term_memory.current_time
         current_time = now.strftime("%B %d, %Y, at %I:%M %p") if now else "an unknown hour"
         current_desc = (agent.short_term_memory.action.description or "").lower()
-        # Minimal guard to avoid overlapping chats; other constraints handled in prompt
         if agent.short_term_memory.action.chat.with_whom:
             logger.debug("[Planner] Agent is in a chat; skipping reaction.")
             return None
+        
+        try:
+            current_sector = world.tile_manager.get_current_sector(agent.position)
+        except Exception:
+            current_sector = ""
+        try:
+            current_arena = world.tile_manager.get_tile_path(agent.position, "arena").split(":")[-1]
+        except Exception:
+            current_arena = ""
+        try:
+            current_object = world.tile_manager.get_tile_path(agent.position, "game_object").split(":")[-1]
+        except Exception:
+            current_object = ""
+        addr_parts: List[str] = [world.name]
+        if current_sector:
+            addr_parts.append(current_sector)
+        if current_arena:
+            addr_parts.append(current_arena)
+        if current_object:
+            addr_parts.append(current_object)
+        current_address = ":".join(addr_parts)
+        is_at_location = current_address == agent.short_term_memory.action.address
+        agent_loc = ""
+        if agent.short_term_memory.action.address and ':' in agent.short_term_memory.action.address:
+            parts = agent.short_term_memory.action.address.split(':')
+            agent_loc = parts[-1] + " in " + parts[-2] if len(parts) >= 2 else ""
+        init_p_desc = f"{agent.name} is already {current_desc} at {agent_loc}" if is_at_location else f"{agent.name} is on the way to {current_desc} at {agent_loc}"
+
+        target_name = event.subject
+        target_act_desc = f"{event.predicate} {event.object}" if event.object else event.predicate
+        target_p_desc = f"{target_name} {target_act_desc}"
+        target_loc = ""
+        target_agent = None
+        try:
+            target_agent = next((a for a in world.agents if a.name == target_name), None)
+            if target_agent:
+                target_act_desc = target_agent.short_term_memory.action.description or "idle"
+                target_address = target_agent.short_term_memory.action.address or ""
+                if ':' in target_address:
+                    parts = target_address.split(':')
+                    target_loc = parts[-1] + " in " + parts[-2] if len(parts) >= 2 else ""
+                target_current_sector = world.tile_manager.get_current_sector(target_agent.position)
+                target_current_arena = world.tile_manager.get_tile_path(target_agent.position, "arena").split(":")[-1]
+                target_current_object = world.tile_manager.get_tile_path(target_agent.position, "game_object").split(":")[-1]
+                target_current_address = f"{world.name}:{target_current_sector}:{target_current_arena}" + (f":{target_current_object}" if target_current_object else "")
+                target_is_at = target_current_address == target_address
+                target_p_desc = f"{target_name} is already {target_act_desc} at {target_loc}" if target_is_at else f"{target_name} is on the way to {target_act_desc} at {target_loc}"
+        except Exception as e:
+            logger.debug(f"[Planner] Could not retrieve target agent details: {e}")
 
         move_targets: List[str] = []
         world_name = world.name
@@ -903,7 +966,7 @@ class ModularPlanner(IPlanner):
                 if addr3 not in dedup:
                     move_targets.append(addr3)
                     dedup.add(addr3)
-
+        
         context = {
             "agent": agent.get_state(),
             "event": {
@@ -917,37 +980,37 @@ class ModularPlanner(IPlanner):
             "current_action": current_desc,
             "in_chat": bool(agent.short_term_memory.action.chat.with_whom),
             "move_targets": move_targets,
+            "context": context_str,
+            "init_p_desc": init_p_desc,
+            "target_p_desc": target_p_desc,
+            "target_act_desc": target_act_desc,
         }
-
         prompt = self._render_prompt("should_react_to_event.txt", context)
-        logger.debug(f"[Planner] Reaction prompt =>\n{prompt}")
-
-        allowed_cmds: List[str] = []
-        try:
-            subj = (event.subject or "someone").strip()
-            obj = (event.object or "surroundings").strip() or "surroundings"
-            allowed_cmds = [
-                f"chat with {subj}",
-                f"help {subj}",
-                f"follow {subj}",
-                f"observe {obj}",
-                "wait",
-                "ignore",
-            ] + [f"move to {addr}" for addr in context.get("move_targets", [])]
-        except Exception:
-            allowed_cmds = []
-
+        logger.debug(f"[Planner] Reaction decision prompt =>\n{prompt}")
+        
         response = self.model.generate(
             prompt,
-            max_tokens=100,
-            stop=["\n", "###"],
-            temperature=0.0,
-            top_p=0.7,
-            allowed_strings=allowed_cmds or None,
+            max_tokens=200,
+            stop=[":"],
+            temperature=0,
+            top_p=1,
         )
-        reaction = response.strip()
-        logger.debug(f"[Planner] Reaction decision: {reaction}")
-        return reaction if reaction else None
+
+        option = ""
+        try:
+            option_part = response.split("Option ")[-1].strip().lower()
+            option = option_part[0]
+        except Exception:
+            option = "2"
+        
+        logger.debug(f"[Planner] Raw reaction response: {response}")
+        
+        if option == "1":
+            return "chat with " + (event.subject or "someone")
+        elif option == "2":
+            return "ignore"
+        else:
+            return None
 
     def _apply_reaction(self, agent: Agent, world: World, context_bundle: Dict[str, List[MemoryNode]], reaction_mode: str):
         logger.info(f"[Planner] Applying reaction: {reaction_mode}")
@@ -997,19 +1060,16 @@ class ModularPlanner(IPlanner):
             except Exception:
                 meeting_addr = None
 
-            # Do not start the timer yet; executor will start it upon arrival
             agent.short_term_memory.action.description = f"heading to chat with {target}"
             agent.short_term_memory.action.event = Event(agent.name, "chat with", target, summary)
             agent.short_term_memory.action.duration = minutes
             agent.short_term_memory.action.start(now)
             logger.debug(f"[Planner] Planned action to chat with {target} for {minutes} minutes. Summary: {summary}")
 
-            # Minimal symmetric chat state on the target agent
             try:
-                target_agent = next((a for a in world.agents if a.name == target), None)
+                target_agent: Agent = next((a for a in world.agents if a.name == target), None)
                 if target_agent is not None:
                     target_agent.short_term_memory.action.chat.with_whom = agent.name
-                    # Share the same initial convo context
                     target_agent.short_term_memory.action.chat.chat_log = [[s, u] for s, u in convo]
                     target_agent.short_term_memory.action.description = f"heading to chat with {agent.name}"
                     target_agent.short_term_memory.action.event = Event(target_agent.name, "chat with", agent.name, summary)
@@ -1029,44 +1089,6 @@ class ModularPlanner(IPlanner):
             agent.short_term_memory.action.duration = 10
             agent.short_term_memory.action.start(now)
             logger.debug(f"[Planner] Planned action to wait for 10 minutes.")
-
-        elif reaction_mode.startswith("move to"):
-            logger.debug(f"[Planner] Setting up move to reaction to event: {event.subject} {event.predicate} {event.object}")
-            location = reaction_mode[len("move to "):].strip() or "somewhere"
-            agent.short_term_memory.action.description = f"moving to {location}"
-            agent.short_term_memory.action.event = Event(agent.name, "move to", location, f"{agent.name} heads toward {location}.")
-            agent.short_term_memory.action.duration = 15
-            agent.short_term_memory.action.address = location
-            agent.short_term_memory.action.start(now)
-            logger.debug(f"[Planner] Planned action to move to {location} for 15 minutes.")
-
-        elif reaction_mode.startswith("observe"):
-            logger.debug(f"[Planner] Setting up observe reaction to event: {event.subject} {event.predicate} {event.object}")
-            target = event.object or "surroundings"
-            agent.short_term_memory.action.description = f"observing {target}"
-            agent.short_term_memory.action.event = Event(agent.name, "observe", target, f"{agent.name} watches {target} closely.")
-            agent.short_term_memory.action.duration = 5
-            agent.short_term_memory.action.start(now)
-            logger.debug(f"[Planner] Planned action to observe of {target} for 5 minutes.")
-
-        elif reaction_mode.startswith("help"):
-            logger.debug(f"[Planner] Setting up help reaction to event: {event.subject} {event.predicate} {event.object}")
-            target = event.object or "someone"
-            agent.short_term_memory.action.description = f"helping {target}"
-            agent.short_term_memory.action.event = Event(agent.name, "help", target, f"{agent.name} offers help to {target}.")
-            agent.short_term_memory.action.duration = 10
-            agent.short_term_memory.action.start(now)
-            logger.debug(f"[Planner] Planned action to help for {target} for 10 minutes.")
-
-        elif reaction_mode.startswith("follow"):
-            logger.debug(f"[Planner] Setting up follow reaction to event: {event.subject} {event.predicate} {event.object}")
-            target = event.object or "someone"
-            agent.short_term_memory.action.description = f"following {target}"
-            agent.short_term_memory.action.event = Event(agent.name, "follow", target, f"{agent.name} quietly follows {target}.")
-            agent.short_term_memory.action.duration = 10
-            agent.short_term_memory.action.start(now)
-            logger.debug(f"[Planner] Planned action to follow of {target} for 10 minutes.")
-
         else:
             logger.info(f"[Planner] No handler for reaction: {reaction_mode}. Keeping current plan.")
             return

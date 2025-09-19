@@ -19,17 +19,20 @@ You decide how an NPC in a tiny medieval forest hamlet reacts to an observed eve
 {{ move_targets | join("\n") }}
 {% endif %}
 
-### Rules (strict)
-- First, reason step by step internally; then return only the final command on a single line.
-- Return EXACTLY ONE of the following commands (no explanations, no quotes):
-  - chat with {{ event.subject }}
-  - help {{ event.subject }}
-  - follow {{ event.subject }}
-  - observe {{ event.object or 'surroundings' }}
-  - move to <one item from MOVE_TARGETS>
-  - wait
-  - ignore
-- If already in a conversation or clearly sleeping, return "ignore".
-- Prefer medieval-appropriate social/helpful actions if relevant; otherwise use "wait" or "ignore".
+### Rules
+- Reason step by step internally, then provide the reasoning and answer in the specified format.
+- Answer in a exact number which reflects the Option (e.g. Option 1 return "1")
+- Output in this exact format after reasoning (Option x): [x]
+- If already in conversation or clearly sleeping, choose Option 2.
+
+### Decision
+Context: {{ context }}
+Right now, it is {{ current_time }}!. 
+{{ init_p_desc }}! 
+{{ target_p_desc }}! 
+
+My question: Let's think step by step. Of the following three options, what should {{ agent.name }} do?
+Option 1: Wait on {{ current_action }} until {{ event.subject }} is done {{ target_act_desc }}!
+Option 2: Continue on to {{ current_action }} now
 
 ### Assistant
