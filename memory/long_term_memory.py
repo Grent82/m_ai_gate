@@ -12,6 +12,7 @@ class MemoryNode:
         node_id: str,
         node_type: str,
         created: datetime,
+        depth: int,
         relevance: float,
         expiration: Optional[datetime] = None,
         keywords: Optional[set] = None,
@@ -23,6 +24,7 @@ class MemoryNode:
         self.node_type = node_type  # "event", "thought", "chat"
         self.created = created
         self.last_accessed = created
+        self.depth = depth
         self.relevance = relevance
         self.expiration = expiration
         self.keywords = keywords
@@ -56,7 +58,7 @@ class LongTermMemory:
         return f"node_{self.node_counter}"
 
     def add_event(self, event: Event, relevance: float, keywords: Optional[set] = None, embedding: Optional[List[float]] = None, filling: List[List[str]] = None) -> MemoryNode:
-        node = self.add_memory_node("event", event, relevance, keywords, filling, None, embedding)
+        node = self.add_memory_node("event", event, relevance, keywords, filling, None, embedding, depth=0)
         if keywords:
             for keyword in keywords:
                 key = keyword.lower()
@@ -74,7 +76,28 @@ class LongTermMemory:
         all_keys: Set[str] = set(keywords) if keywords else set()
         all_keys |= base_keys
 
-        node = self.add_memory_node("thought", event, relevance, all_keys or None, filling, expiration, embedding)
+        computed_depth = 1
+        try:
+            if filling:
+                cand_ids = []
+                for f in filling:
+                    if isinstance(f, str):
+                        cand_ids.append(f)
+                    elif isinstance(f, list):
+                        for x in f:
+                            if isinstance(x, str):
+                                cand_ids.append(x)
+                id_to_node = {}
+                for t in ("event", "thought", "chat"):
+                    for n in self.node_sequences.get(t, []):
+                        id_to_node[getattr(n, "node_id", "")] = n
+                depths = [getattr(id_to_node.get(cid, None), "depth", 0) for cid in cand_ids if cid in id_to_node]
+                if depths:
+                    computed_depth = 1 + max(depths)
+        except Exception:
+            computed_depth = 1
+
+        node = self.add_memory_node("thought", event, relevance, all_keys or None, filling, expiration, embedding, depth=computed_depth)
 
         if all_keys:
             for keyword in all_keys:
@@ -99,12 +122,13 @@ class LongTermMemory:
                 self.keyword_to_chat.setdefault(key, []).insert(0, node)
         return node
     
-    def add_memory_node(self, node_type: str, event: Event, relevance: float, keywords: Optional[set] = None, filling: List[List[str]] = None, expiration: Optional[datetime] = None, embedding: Optional[List[float]] = None) -> MemoryNode:
+    def add_memory_node(self, node_type: str, event: Event, relevance: float, keywords: Optional[set] = None, filling: List[List[str]] = None, expiration: Optional[datetime] = None, embedding: Optional[List[float]] = None, depth: int = 0) -> MemoryNode:
         node_id = self._generate_node_id()
         node = MemoryNode(
             node_id=node_id,
             node_type=node_type,
             created=datetime.now(),
+            depth=depth,
             expiration=expiration,
             event=event,
             relevance=relevance,

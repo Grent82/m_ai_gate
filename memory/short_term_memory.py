@@ -26,7 +26,7 @@ class ShortTermMemory:
         self.recency_weight = 1
         self.importance_weight = 1
         self.relevance_weight = 1
+        self.depth_weight = 0.5
 
     def add_action(self, action: AgentAction):
         self.action = action
-
