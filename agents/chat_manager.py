@@ -126,6 +126,38 @@ class ChatManager:
         if not statements:
             return None
 
+        last_chat_time: Optional[str] = None
+        last_chat_excerpt: Optional[str] = None
+        try:
+            for node in agent.long_term_memory.node_sequences.get("chat", []):
+                ev = getattr(node, "event", None)
+                if not ev:
+                    continue
+                if (ev.subject == agent.name and ev.object == (target_agent.name if target_agent else target)) or (
+                    ev.subject == (target_agent.name if target_agent else target) and ev.object == agent.name
+                ):
+                    t = getattr(node, "created", None)
+                    if t:
+                        last_chat_time = t.strftime("%H:%M")
+                    lines = []
+                    try:
+                        fill = getattr(node, "filling", None) or []
+                        for s, u in (fill[-2:] if len(fill) >= 2 else fill):
+                            lines.append(f"{s}: {u}")
+                    except Exception as e:
+                        logger.debug("[Relation] Parsing last chat excerpt failed: %s", e)
+                    if lines:
+                        last_chat_excerpt = "\n".join(lines)
+                    break
+        except Exception as e:
+            logger.debug("[Relation] Scan last chat failed: %s", e)
+
+        agent_action = getattr(agent.short_term_memory.action, "description", None) or ""
+        target_action = getattr(target_agent.short_term_memory.action, "description", None) if target_agent else ""
+
+        agent_th_about_target = self._recent_thoughts_about(agent, target)
+        target_th_about_agent = self._recent_thoughts_about(target_agent, agent.name) if target_agent else None
+
         context = {
             "agent": agent.get_state(),
             "target_agent": target_agent.get_state() if target_agent else {
@@ -138,43 +170,30 @@ class ChatManager:
                 "memories": [],
             },
             "statements": "\n".join(statements),
+            "last_chat_time": last_chat_time,
+            "last_chat_excerpt": last_chat_excerpt,
+            "agent_action": agent_action,
+            "target_action": target_action,
+            "agent_thoughts_about_target": agent_th_about_target,
+            "target_thoughts_about_agent": target_th_about_agent,
         }
-        try:
-            logger.debug(f"[Relation] Found {len(statements)} statements for {agent.name} ↔ {target}")
-        except Exception as e:
-            logger.debug("[Relation] Logging statements failed: %s", e)
+        logger.debug(f"[Relation] Found {len(statements)} statements for {agent.name} ↔ {target}")
+
+        prompt = ""
         try:
             prompt = self.env.get_template("summarize_relationship.txt").render(context)
         except Exception as e:
-            logger.debug("[Relation] Template render failed: %s", e)
-            prompt = ""
+            logger.error("[Relation] Template render failed: %s", e)
+        summary = None
         try:
             summary = self.model.generate(prompt, max_tokens=80, stop=["</summary>", "###"]).strip()
         except Exception as e:
-            logger.debug("[Relation] Model generation failed: %s", e)
+            logger.eror("[Relation] Model generation failed: %s", e)
         if not summary:
+            logger.debug("[Relation] No summary generated.")
             return None
 
-        # Store as a thought for future retrieval on both agents (if present)
-        try:
-            ev_a = Event(agent.name, "relationship with", target_agent.name if target_agent else target, summary)
-            emb_a = get_embedding(summary)
-            agent.long_term_memory.add_thought(ev_a, relevance=5.0, keywords={agent.name, target.lower(), "relationship"}, filling=None, embedding=emb_a)
-            logger.debug(f"[Relation] Stored relationship summary for {agent.name} → {target}")
-        except Exception as e:
-            logger.debug("[Relation] Failed to store relationship summary for agent: %s", e)
-        try:
-            if target_agent:
-                ev_b = Event(target_agent.name, "relationship with", agent.name, summary)
-                emb_b = get_embedding(summary)
-                target_agent.long_term_memory.add_thought(ev_b, relevance=5.0, keywords={target_agent.name, agent.name.lower(), "relationship"}, filling=None, embedding=emb_b)
-                logger.debug(f"[Relation] Stored relationship summary for {target_agent.name} → {agent.name}")
-        except Exception as e:
-            logger.debug("[Relation] Failed to store relationship summary for target: %s", e)
-        try:
-            logger.debug(f"[Relation] Summary => {summary}")
-        except Exception as e:
-            logger.debug("[Relation] Logging summary failed: %s", e)
+        logger.debug(f"[Relation] Summary => {summary}")
         return summary
 
     def generate_conversation(self, agent: Agent, world: World, target: str, max_turns: int = 6) -> List[List[str]]:

@@ -5,13 +5,27 @@ Characterize the relationship between two medieval NPCs based on prior memories 
 - {{ agent.name }}: traits={{ agent.traits }}; lifestyle={{ agent.lifestyle }}; status={{ agent.status }}.
 - {{ target_agent.name }}: traits={{ target_agent.traits }}; lifestyle={{ target_agent.lifestyle }}; status={{ target_agent.status }}.
 
+### Current Activities
+- {{ agent.name }}: {{ agent_action | default('') }}
+- {{ target_agent.name }}: {{ target_action | default('') }}
+
 ### Evidence
 Statements:
 {{ statements }}
 
+Last Chat:
+- time: {{ last_chat_time | default('') }}
+- excerpt:
+{{ last_chat_excerpt | default('') }}
+
+Thought Hints (optional):
+- {{ agent.name }} about {{ target_agent.name }}: {{ agent_thoughts_about_target | default('') }}
+- {{ target_agent.name }} about {{ agent.name }}: {{ target_thoughts_about_agent | default('') }}
+
 ### Instructions
-- Write one concise line capturing how {{ agent.name }} and {{ target_agent.name }} relate (e.g., friendly acquaintances, wary respect, tense rivals, budding romance, distant strangers).
-- Base it only on the statements; avoid speculation beyond them.
+- Write exactly one short line describing how {{ agent.name }} and {{ target_agent.name }} relate (e.g., friendly acquaintances, wary respect, tense rivals, budding romance, distant strangers).
+- Prefer names over pronouns to avoid ambiguity; do not use he/she/they if it could be unclear.
+- Base it only on the statements and chat excerpt; do not invent new facts.
 - Do not include quotes, labels, or extra commentary.
 
 </summary>
