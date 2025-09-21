@@ -7,7 +7,7 @@ from core.agent import Agent
 from core.agent_action import Event
 from core.logger import setup_logger
 from memory.long_term_memory import MemoryNode
-from models.embeddings import get_embedding
+from models.embedding_cache import get_embedding_cached
 from models.local_model import LocalModel
 
 from .event_triple_generator import EventTripleGenerator
@@ -52,7 +52,7 @@ class Reflection:
             logger.debug(f"[Reflection] Insights generated: {insights}")
             for thought, evidence_ids in insights.items():
                 event = self._thought_to_event(agent, thought)
-                embedding = get_embedding(thought)
+                embedding = get_embedding_cached(thought)
                 keywords = {k for k in [event.subject, event.predicate, event.object] if k}
                 relevance = self._thought_significance(agent, thought)
                 node = agent.long_term_memory.add_thought(
@@ -184,4 +184,3 @@ class Reflection:
         stm = agent.short_term_memory
         stm.importance_trigger_current = self.importance_threshold
         stm.importance_element_count = 0
-

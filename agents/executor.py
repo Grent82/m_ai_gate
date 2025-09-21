@@ -9,7 +9,6 @@ from core.agent import Agent
 from core.agent_action import Event
 from core.world import World
 from memory.long_term_memory import MemoryNode
-from models.embeddings import get_embedding
 from models.local_model import LocalModel
 from core.logger import setup_logger
 from interfaces.i_executor import IExecutor

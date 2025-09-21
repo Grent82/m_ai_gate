@@ -7,7 +7,7 @@ from core.agent_action import Event
 from core.tile import Tile
 from core.world import World
 from memory.long_term_memory import MemoryNode
-from models.embeddings import get_embedding
+from models.embedding_cache import get_embedding_cached
 from models.local_model import LocalModel
 from core.logger import setup_logger
 
@@ -141,7 +141,7 @@ class Perception:
                 if action_event.description: 
                     logger.debug(f"[Perception] Current self-chat {action_event.description}")
 
-                embedding = get_embedding(action_event.description)
+                embedding = get_embedding_cached(action_event.description)
                 significance = self._calculate_significance(action_event.description, "chat")
 
                 return self.agent.long_term_memory.add_chat(
@@ -184,7 +184,7 @@ class Perception:
         significance = self._calculate_significance(event.description, percept_type)
 
         keywords = self._extract_keywords(event.subject, event.object)
-        embedding = get_embedding(event.description)
+        embedding = get_embedding_cached(event.description)
 
         self.agent.short_term_memory.importance_trigger_current -= significance
         self.agent.short_term_memory.importance_element_count += 1

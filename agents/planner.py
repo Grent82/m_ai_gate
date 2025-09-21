@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 from jinja2 import Environment, FileSystemLoader
 from core.agent_action import Event
 from memory.long_term_memory import MemoryNode
-from models.embeddings import get_embedding
+from models.embedding_cache import get_embedding_cached
 from models.local_model import LocalModel
 from core.agent import Agent
 from core.world import World
@@ -98,7 +98,7 @@ class ModularPlanner(IPlanner):
         for i in agent.short_term_memory.daily_schedule_hourly:
             thought += f" {i['time']} - {i['task']},"
         thought = thought[:-1] + "."
-        embedding = get_embedding(thought)
+        embedding = get_embedding_cached(thought)
         relevance = 5
         
         logger.debug(f"Add thought '{thought}' to memory")

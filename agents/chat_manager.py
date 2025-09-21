@@ -6,7 +6,6 @@ from core.logger import setup_logger
 from core.world import World
 from core.agent import Agent
 from core.agent_action import Event
-from models.embeddings import get_embedding
 
 logger = setup_logger(__name__, log_level="DEBUG")
 

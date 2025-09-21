@@ -3,7 +3,7 @@ from core.agent import Agent
 from core.agent_action import Event
 from agents.event_triple_generator import EventTripleGenerator
 from agents.inner_thought_generator import InnerThoughtGenerator
-from models.embeddings import get_embedding
+from models.embedding_cache import get_embedding_cached
 from core.logger import setup_logger
 
 logger = setup_logger(__name__, log_level="DEBUG")
@@ -52,7 +52,7 @@ class AgentBuilder:
             thought = self.inner_thought_generator.generate_inner_thought(agent, whisper)
             triples = self._parse_event_triple(agent, thought)
             for s, p, o in triples:
-                embedding = get_embedding(thought)
+                embedding = get_embedding_cached(thought)
                 agent.long_term_memory.add_thought(
                     event=self._make_event(s, p, o, thought),
                     relevance=6.5,

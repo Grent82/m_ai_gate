@@ -5,7 +5,7 @@ import heapq
 from core.logger import setup_logger
 from memory.long_term_memory import LongTermMemory, MemoryNode
 from memory.short_term_memory import ShortTermMemory
-from models.embeddings import get_embedding
+from models.embedding_cache import get_embedding_cached
 
 logger = setup_logger(__name__, log_level="DEBUG")
 
@@ -82,7 +82,7 @@ class Retrieval:
 
         for description in focal_descriptions:
             logger.debug(f"[Retrieval] Processing focal description: {description}")
-            focus_emb = get_embedding(description)
+            focus_emb = get_embedding_cached(description)
 
             recency = self._extract_recency(all_nodes)
             importance = self._extract_importance(all_nodes)

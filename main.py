@@ -13,6 +13,7 @@ from core.setup.agent_builder import AgentBuilder
 from core.setup.world_builder import WorldBuilder
 from models.local_model import LocalModel
 from core.logger import setup_logger
+from memory.persistence import load_agent_state, save_agent_state
 
 
 def run_agent() -> None:
@@ -42,20 +43,22 @@ def run_agent() -> None:
     agents = AgentBuilder(InnerThoughtGenerator(model), EventTripleGenerator(model)).build_medieval_agents()
     for agent in agents:
         world.add_agent(agent)
+        try:
+            load_agent_state(agent, base_dir=os.getenv("PERSIST_DIR", "data"))
+        except Exception:
+            pass
 
 
     for tick in range(ticks):
         logger.info(f"=== Tick {tick + 1}/{ticks} @ {world.current_time.strftime('%H:%M')} ===")
         for agent in agents:
             agent.short_term_memory.current_time = world.current_time
-            # Cleanup expired action events before perception/planning
             try:
                 cleaned = executor.cleanup_expired(agent, world)
                 if cleaned:
                     logger.debug(f"Cleaned up expired action for {agent.name}.")
             except Exception:
                 pass
-            # Tick chat cooldown buffers by 1 minute
             try:
                 executor.tick_chat_cooldowns(agent)
             except Exception:
@@ -78,8 +81,13 @@ def run_agent() -> None:
             status = executor.execute(agent, world, max_steps=2)
             logger.info(f"Execution status for {agent.name}: {status}")
 
-        # Advance global time after all agents act
         world.advance_time(tick_minutes)
+
+        for agent in agents:
+            try:
+                save_agent_state(agent, base_dir=os.getenv("PERSIST_DIR", "data"))
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     run_agent()

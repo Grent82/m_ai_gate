@@ -23,7 +23,6 @@ class SpatialMemory:
                 logger.debug("Accessible sectors for world '%s': %s", world_name, result)
                 return result
             logger.warning("Unexpected sectors type for world '%s': %s", world_name, type(sectors).__name__)
-            logger.debug("World '%s' sectors raw value: %r", world_name, sectors)
             return []
         except Exception as e:
             logger.error("Error retrieving accessible sectors: %s", e)
@@ -37,7 +36,6 @@ class SpatialMemory:
                 logger.debug("Accessible arenas for world '%s', sector '%s': %s", world_name, sector_name, result)
                 return result
             logger.warning( "Unexpected arenas type for world '%s', sector '%s': %s", world_name, sector_name, type(sector_map).__name__ )
-            logger.debug( "World '%s', sector '%s' arenas raw value: %r", world_name, sector_name, sector_map, )
             return []
         except Exception as e:
             logger.error("Error retrieving accessible arenas for world '%s' and sector '%s': %s", world_name, sector_name, e)
@@ -95,12 +93,6 @@ class SpatialMemory:
             )
             if not isinstance(arena_map, dict):
                 logger.warning( "Unexpected arena map type for world='%s', sector='%s': %s", world_name, sector_name, type(arena_map).__name__)
-                logger.debug(
-                    "World '%s', sector '%s' arena map raw value: %r",
-                    world_name,
-                    sector_name,
-                    arena_map,
-                )
                 return []
             objs = arena_map.get(arena_name, [])
             clean = list(dict.fromkeys([o for o in objs if isinstance(o, str) and o]))
