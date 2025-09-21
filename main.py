@@ -55,6 +55,11 @@ def run_agent() -> None:
                     logger.debug(f"Cleaned up expired action for {agent.name}.")
             except Exception:
                 pass
+            # Tick chat cooldown buffers by 1 minute
+            try:
+                executor.tick_chat_cooldowns(agent)
+            except Exception:
+                pass
 
             perceived = perception.perceive(agent, world)
             logger.info(f"Perceived {len(perceived)} events for {agent.name}.")

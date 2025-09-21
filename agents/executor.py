@@ -378,3 +378,18 @@ class Executor(IExecutor):
         action.chat.end_time = None
         logger.debug("[Executor] Cleaned up expired action at %s", now)
         return "cleaned"
+
+    def tick_chat_cooldowns(self, agent: Agent) -> None:
+        """Decrement per-target chat cooldowns by 1 minute (if present)."""
+        try:
+            buf = agent.short_term_memory.action.chat.buffer
+            for k in list(buf.keys()):
+                v = buf.get(k, 0)
+                if v > 0:
+                    buf[k] = v - 1
+                    if buf[k] > 0:
+                        logger.debug("[Executor] Chat cooldown %s → %s: %d min left", agent.name, k, buf[k])
+                    else:
+                        logger.debug("[Executor] Chat cooldown %s → %s: cleared", agent.name, k)
+        except Exception:
+            pass

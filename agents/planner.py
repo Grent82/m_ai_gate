@@ -1019,6 +1019,41 @@ class ModularPlanner(IPlanner):
         if reaction_mode.startswith("chat with"):
             target_text = reaction_mode[len("chat with"):].strip()
             target = target_text or event.subject or event.object or "someone"
+            try:
+                if now and now.hour == 23:
+                    logger.debug("[Planner] Skipping chat: quiet hours.")
+                    return
+                if agent.short_term_memory.action.chat.with_whom:
+                    logger.debug("[Planner] Skipping chat: initiator already in chat.")
+                    return
+                target_agent = next((a for a in world.agents if a.name == target), None)
+                if target_agent is None:
+                    logger.debug("[Planner] Skipping chat: target not found.")
+                    return
+                if target_agent.short_term_memory.action.chat.with_whom:
+                    logger.debug("[Planner] Skipping chat: target already in chat.")
+                    return
+                if not (agent.short_term_memory.action.description or "").strip() or not (target_agent.short_term_memory.action.description or "").strip():
+                    logger.debug("[Planner] Skipping chat: missing action descriptions.")
+                    return
+                if "sleep" in (agent.short_term_memory.action.description or "").lower() or "sleep" in (target_agent.short_term_memory.action.description or "").lower():
+                    logger.debug("[Planner] Skipping chat: sleep in progress.")
+                    return
+                if "waiting" in (target_agent.short_term_memory.action.description or "").lower():
+                    logger.debug("[Planner] Skipping chat: target waiting.")
+                    return
+                init_buf = agent.short_term_memory.action.chat.buffer or {}
+                targ_buf = target_agent.short_term_memory.action.chat.buffer or {}
+                if init_buf.get(target, 0) > 0:
+                    logger.debug("[Planner] Skipping chat: initiator cooldown active for %s (%d)", target, init_buf.get(target, 0))
+                    return
+                if targ_buf.get(agent.name, 0) > 0:
+                    logger.debug("[Planner] Skipping chat: target cooldown active for %s (%d)", agent.name, targ_buf.get(agent.name, 0))
+                    return
+            except Exception as e:
+                logger.debug("[Planner] Chat guard checks failed: %s", e)
+                return
+
             convo = self.chat_manager.generate_conversation(agent, world, target)
             summary = self.chat_manager.summarize_conversation(agent, convo)
             turns = max(1, len(convo))
@@ -1031,7 +1066,6 @@ class ModularPlanner(IPlanner):
             try:
                 tm = world.tile_manager
                 initiator_pos = agent.position
-                target_agent = next((a for a in world.agents if a.name == target), None)
                 if target_agent is not None:
                     tx, ty = target_agent.position
                     occupied = {a.position for a in world.agents}
