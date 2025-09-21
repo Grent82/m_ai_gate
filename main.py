@@ -48,6 +48,13 @@ def run_agent() -> None:
         logger.info(f"=== Tick {tick + 1}/{ticks} @ {world.current_time.strftime('%H:%M')} ===")
         for agent in agents:
             agent.short_term_memory.current_time = world.current_time
+            # Cleanup expired action events before perception/planning
+            try:
+                cleaned = executor.cleanup_expired(agent, world)
+                if cleaned:
+                    logger.debug(f"Cleaned up expired action for {agent.name}.")
+            except Exception:
+                pass
 
             perceived = perception.perceive(agent, world)
             logger.info(f"Perceived {len(perceived)} events for {agent.name}.")
