@@ -95,9 +95,7 @@ class TileManager:
             raise ValueError("Invalid level.")
         index = levels.index(level) + 1
         if any(p is None for p in path[:index]):
-            logger.error(
-                "Path level %s is missing for position (%d, %d).", level, x, y
-            )
+            logger.error( "Path level %s is missing for position (%d, %d).", level, x, y )
             raise ValueError("Path level is missing.")
         return ":".join(filter(None, path[:index]))
 

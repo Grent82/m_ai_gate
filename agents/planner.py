@@ -327,7 +327,6 @@ class ModularPlanner(IPlanner):
             line = raw_line.strip()
             if not line:
                 continue
-            # Normalize list bullets and dashes
             line = re.sub(r"^[•\-*\u2022]+\s*", "", line)
             line = line.replace("—", "-").replace("–", "-").replace("−", "-")
 
@@ -351,7 +350,6 @@ class ModularPlanner(IPlanner):
                 logger.warning(f"[Planner] Unparseable times in line; skipping: '{raw_line}' -> start='{start}', end='{end}'")
                 continue
 
-            # Handle cross‑midnight ranges by splitting into two blocks
             if end_dt <= start_dt:
                 if start != end:
                     logger.debug( f"[Planner] Splitting cross-midnight block: '{raw_line}' -> ['{start}-23:59', '00:00-{end}']" )
@@ -379,7 +377,6 @@ class ModularPlanner(IPlanner):
 
             hourly_schedule = agent.short_term_memory.daily_schedule_hourly
 
-            # Find the schedule entry that contains 'now'
             idx = None
             for i, entry in enumerate(hourly_schedule):
                 entry_time = datetime.strptime(entry["time"], "%H:%M")
@@ -393,13 +390,11 @@ class ModularPlanner(IPlanner):
 
             task = hourly_schedule[idx]["task"]
 
-            # Walk backward to find the start of this contiguous task block
             start_idx = idx
             while start_idx - 1 >= 0 and hourly_schedule[start_idx - 1]["task"] == task:
                 start_idx -= 1
             start_time = hourly_schedule[start_idx]["time"]
 
-            # Walk forward to find when this task changes next
             end_idx = idx + 1
             while end_idx < len(hourly_schedule) and hourly_schedule[end_idx]["task"] == task:
                 end_idx += 1
@@ -682,7 +677,6 @@ class ModularPlanner(IPlanner):
             logger.debug(f"[Planner] Object interaction generation skipped: {e}")
 
         try:
-            summary = f"From {time_key} for {duration} minutes, {agent.name} is {current_task_desc}."
             end_time = (now + timedelta(minutes=duration)).strftime("%H:%M")
             micro = self.generate_microtasks(
                 agent,
@@ -1105,7 +1099,29 @@ class ModularPlanner(IPlanner):
         return response
 
     def _parse_microtasks_text(self, text: str) -> List[str]:
-        lines = [l.strip() for l in text.strip().splitlines() if l.strip()]
+        raw_lines = [l.strip() for l in text.strip().splitlines() if l.strip()]
+
+        import re
+        time_marker = re.compile(r"(?=(?:\b\d{1,2}:\d{2}\b\s*:)|(?:\b\d{1,2}\b\s*:))")
+        lines: List[str] = []
+        for l in raw_lines:
+            parts = [p.strip() for p in time_marker.split(l) if p and not time_marker.fullmatch(p)]
+            if parts:
+                acc: List[str] = []
+                curr = ""
+                for chunk in parts:
+                    if re.match(r"^(?:\d{1,2}:\d{2}|\d{1,2})\s*:\s*", chunk):
+                        if curr:
+                            acc.append(curr.strip())
+                        curr = chunk
+                    else:
+                        curr = (curr + " " + chunk).strip()
+                if curr:
+                    acc.append(curr.strip())
+                lines.extend(acc)
+            else:
+                lines.append(l)
+
         cleaned: List[str] = []
         for l in lines:
             s = l
@@ -1115,6 +1131,8 @@ class ModularPlanner(IPlanner):
             s = re.sub(r"^(?:\d{1,2}:\d{2}(?::\d{2})?\s*(?:-\s*\d{1,2}:\d{2}(?::\d{2})?)?\s*[-:]?\s*)+", "", s)
             # Remove stray leading ":MM:" leftovers
             s = re.sub(r"^:\d{1,2}:\s*", "", s)
+            # Remove bare minute markers like "05:" at start
+            s = re.sub(r"^\b\d{1,2}\b\s*:\s*", "", s)
             # Normalize whitespace
             s = re.sub(r"\s+", " ", s).strip()
             if s:
