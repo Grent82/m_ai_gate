@@ -91,7 +91,7 @@ class AgentBuilder:
             learned=(
                 "Thomas Miller is a diligent farmer skilled in plowing, sowing, and harvesting. "
             ),
-            living_area="MedievalVillage:Farmer's House:Main Room",
+            living_area="MedievalVillage:Farmer's House:Private Room",
         ))
 
         agents.append(create_agent(
@@ -120,7 +120,7 @@ class AgentBuilder:
             learned=(
                 "Ayla Hart is a capable huntress proficient in tracking, trapping, and bowcraft. "
             ),
-            living_area="MedievalVillage:Hunter's Cabin:Main Room",
+            living_area="MedievalVillage:Hunter's Cabin:Private Room",
         ))
 
         agents.append(create_agent(

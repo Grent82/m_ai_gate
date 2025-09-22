@@ -25,6 +25,35 @@ class ModularPlanner(IPlanner):
         self.chat_manager = ChatManager(model, template_path)
         self.identity = IdentityReviser(model, template_path)
 
+    def _filter_private_arenas(self, agent: Agent, sector: str, arenas: List[str]) -> List[str]:
+        """
+        Filter out private arenas that should not be accessible to this agent.
+
+        Rules:
+        - If arena name indicates privacy (contains "'s room" or "private room" or looks like a bedroom),
+          only allow it if it matches the agent's living_area (same sector and arena).
+        - Otherwise keep the arena.
+        """
+        try:
+            parts = (agent.living_area or "").split(":")
+            home_sector = parts[1] if len(parts) >= 2 else ""
+            home_arena = parts[2] if len(parts) >= 3 else ""
+        except Exception:
+            home_sector, home_arena = "", ""
+
+        out: List[str] = []
+        for a in arenas or []:
+            al = (a or "").lower()
+            is_private = ("'s room" in al) or ("private room" in al) or ("bedroom" in al and "common" not in al)
+            if is_private:
+                if sector == home_sector and a == home_arena:
+                    out.append(a)
+                else:
+                    continue
+            else:
+                out.append(a)
+        return out
+
     def plan(self, agent: Agent, world: World, retrieved: Dict[str, Dict[str, List[MemoryNode]]], perceived_nodes: Optional[List[MemoryNode]] = None) -> str:
         logger.info("[Planner] Running full daily plan...")
 
@@ -475,8 +504,8 @@ class ModularPlanner(IPlanner):
             sector_prompt,
             max_tokens=32,
             stop=["User:", "###"],
-            temperature=0.25,
-            top_p=0.9,
+            temperature=0.05,
+            top_p=0.1,
             allowed_strings=available_sectors,
         ).strip()
         logger.debug( "[Planner] Sector raw output='%s', options=%s, current='%s'", raw_sector, sector_prompt_context["available_sectors"], sector_prompt_context["current_sector"], )
@@ -497,7 +526,7 @@ class ModularPlanner(IPlanner):
                 if a and a not in seen_set:
                     seen.append(a)
                     seen_set.add(a)
-            available_arenas = seen
+            available_arenas = self._filter_private_arenas(agent, choosen_sector, seen)
         except Exception as e:
             logger.debug("[Planner] Could not build arenas for sector '%s': %s", choosen_sector, e)
             available_arenas = []
@@ -514,7 +543,7 @@ class ModularPlanner(IPlanner):
                 if a and a not in seen_set_cur:
                     seen_cur.append(a)
                     seen_set_cur.add(a)
-            current_sector_arenas = seen_cur
+            current_sector_arenas = self._filter_private_arenas(agent, current_sector, seen_cur)
         except Exception as e:
             logger.debug("[Planner] Could not build arenas for current sector '%s': %s", current_sector, e)
 
@@ -956,7 +985,7 @@ class ModularPlanner(IPlanner):
                         a = tm.get_tile(x, y).arena
                         if a and a not in seen_arenas:
                             seen_arenas.add(a)
-                    arenas = sorted(seen_arenas)
+                    arenas = self._filter_private_arenas(agent, s, sorted(seen_arenas))
                 except Exception:
                     arenas = []
             for a in arenas:

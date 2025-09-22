@@ -82,7 +82,7 @@ class WorldBuilder:
         build_room(
             1, 1, 6, 6,
             sector="Farmer's House",
-            arena="Main Room",
+            arena="Private Room",
             objects=[
                 (2, 2, "bed"),
                 (5, 2, "fireplace"),
@@ -97,7 +97,7 @@ class WorldBuilder:
         build_room(
             8, 1, 14, 6,
             sector="Hunter's Cabin",
-            arena="Main Room",
+            arena="Private Room",
             objects=[
                 (9, 2, "bed"),
                 (13, 2, "fireplace"),
