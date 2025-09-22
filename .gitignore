@@ -195,6 +195,7 @@ pyrightconfig.json
 ### 
 code_examples/
 prompt_examples/
-
+data/
+logs/
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
