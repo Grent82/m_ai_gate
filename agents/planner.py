@@ -148,18 +148,16 @@ class ModularPlanner(IPlanner):
         living_sector_arenas: List[str] = []
         if living_sector:
             try:
-                living_sector_arenas = agent.spatial_memory.get_accessible_arenas(world.name, living_sector) or []
-                if not living_sector_arenas:
-                    tm = world.tile_manager
-                    poss_l = tm.find_positions(sector=living_sector, include_collidable=True)
-                    seen_l: List[str] = []
-                    seen_set_l = set()
-                    for (x, y) in poss_l:
-                        a = tm.get_tile(x, y).arena
-                        if a and a not in seen_set_l:
-                            seen_l.append(a)
-                            seen_set_l.add(a)
-                    living_sector_arenas = seen_l
+                tm = world.tile_manager
+                poss_l = tm.find_positions(sector=living_sector, include_collidable=True)
+                seen_l: List[str] = []
+                seen_set_l = set()
+                for (x, y) in poss_l:
+                    a = tm.get_tile(x, y).arena
+                    if a and a not in seen_set_l:
+                        seen_l.append(a)
+                        seen_set_l.add(a)
+                living_sector_arenas = seen_l
             except Exception:
                 living_sector_arenas = []
 
@@ -431,18 +429,16 @@ class ModularPlanner(IPlanner):
         # Determine Action sector
         current_sector = world.tile_manager.get_current_sector(agent.position)
         try:
-            current_sector_arenas = agent.spatial_memory.get_accessible_arenas(world.name, current_sector) or []
-            if not current_sector_arenas:
-                tm = world.tile_manager
-                poss_cur = tm.find_positions(sector=current_sector, include_collidable=True)
-                seen_cur = []
-                seen_set_cur = set()
-                for (x, y) in poss_cur:
-                    a = tm.get_tile(x, y).arena
-                    if a and a not in seen_set_cur:
-                        seen_cur.append(a)
-                        seen_set_cur.add(a)
-                current_sector_arenas = seen_cur
+            tm = world.tile_manager
+            poss_cur = tm.find_positions(sector=current_sector, include_collidable=True)
+            seen_cur = []
+            seen_set_cur = set()
+            for (x, y) in poss_cur:
+                a = tm.get_tile(x, y).arena
+                if a and a not in seen_set_cur:
+                    seen_cur.append(a)
+                    seen_set_cur.add(a)
+            current_sector_arenas = seen_cur
         except Exception:
             current_sector_arenas = []
 
@@ -452,18 +448,16 @@ class ModularPlanner(IPlanner):
         living_sector_arenas = []
         if living_sector:
             try:
-                living_sector_arenas = agent.spatial_memory.get_accessible_arenas(world.name, living_sector) or []
-                if not living_sector_arenas:
-                    tm = world.tile_manager
-                    poss_l = tm.find_positions(sector=living_sector, include_collidable=True)
-                    seen_l = []
-                    seen_set_l = set()
-                    for (x, y) in poss_l:
-                        a = tm.get_tile(x, y).arena
-                        if a and a not in seen_set_l:
-                            seen_l.append(a)
-                            seen_set_l.add(a)
-                    living_sector_arenas = seen_l
+                tm = world.tile_manager
+                poss_l = tm.find_positions(sector=living_sector, include_collidable=True)
+                seen_l = []
+                seen_set_l = set()
+                for (x, y) in poss_l:
+                    a = tm.get_tile(x, y).arena
+                    if a and a not in seen_set_l:
+                        seen_l.append(a)
+                        seen_set_l.add(a)
+                living_sector_arenas = seen_l
             except Exception as e:
                 logger.debug("[Planner] Could not build arenas for living sector '%s': %s", living_sector, e)
 
@@ -493,40 +487,36 @@ class ModularPlanner(IPlanner):
         )
 
         # Determine Action arena
-        available_arenas = agent.spatial_memory.get_accessible_arenas(world.name, choosen_sector)
-        if not available_arenas:
-            logger.debug(f"[Planner] No arenas known for sector '{choosen_sector}'.")
-            try:
-                tm = world.tile_manager
-                poss = tm.find_positions(sector=choosen_sector, include_collidable=True)
-                seen = []
-                seen_set = set()
-                for (x, y) in poss:
-                    a = tm.get_tile(x, y).arena
-                    if a and a not in seen_set:
-                        seen.append(a)
-                        seen_set.add(a)
-                available_arenas = seen
-                logger.debug("[Planner] Fallback arenas for sector '%s': %s", choosen_sector, available_arenas)
-            except Exception as e:
-                logger.debug("[Planner] Could not build fallback arenas: %s", e)
+        try:
+            tm = world.tile_manager
+            poss = tm.find_positions(sector=choosen_sector, include_collidable=True)
+            seen = []
+            seen_set = set()
+            for (x, y) in poss:
+                a = tm.get_tile(x, y).arena
+                if a and a not in seen_set:
+                    seen.append(a)
+                    seen_set.add(a)
+            available_arenas = seen
+        except Exception as e:
+            logger.debug("[Planner] Could not build arenas for sector '%s': %s", choosen_sector, e)
+            available_arenas = []
 
-        current_sector_arenas = agent.spatial_memory.get_accessible_arenas(world.name, current_sector) or []
-        if not current_sector_arenas:
-            try:
-                tm = world.tile_manager
-                poss_cur = tm.find_positions(sector=current_sector, include_collidable=True)
-                seen_cur: list[str] = []
-                seen_set_cur = set()
-                for (x, y) in poss_cur:
-                    a = tm.get_tile(x, y).arena
-                    if a and a not in seen_set_cur:
-                        seen_cur.append(a)
-                        seen_set_cur.add(a)
-                current_sector_arenas = seen_cur
-                logger.debug("[Planner] Fallback arenas for current sector '%s': %s", current_sector, current_sector_arenas)
-            except Exception as e:
-                logger.debug("[Planner] Could not build fallback arenas for current sector '%s': %s", current_sector, e)
+        # Rebuild current sector arenas for prompt context directly from world
+        current_sector_arenas = []
+        try:
+            tm = world.tile_manager
+            poss_cur = tm.find_positions(sector=current_sector, include_collidable=True)
+            seen_cur: list[str] = []
+            seen_set_cur = set()
+            for (x, y) in poss_cur:
+                a = tm.get_tile(x, y).arena
+                if a and a not in seen_set_cur:
+                    seen_cur.append(a)
+                    seen_set_cur.add(a)
+            current_sector_arenas = seen_cur
+        except Exception as e:
+            logger.debug("[Planner] Could not build arenas for current sector '%s': %s", current_sector, e)
 
         current_arena = world.tile_manager.get_tile_path(agent.position, "arena").split(":")[-1]
         
@@ -536,18 +526,16 @@ class ModularPlanner(IPlanner):
         living_sector_arenas = []
         if living_sector:
             try:
-                living_sector_arenas = agent.spatial_memory.get_accessible_arenas(world.name, living_sector) or []
-                if not living_sector_arenas:
-                    tm = world.tile_manager
-                    poss_l = tm.find_positions(sector=living_sector, include_collidable=True)
-                    seen_l = []
-                    seen_set_l = set()
-                    for (x, y) in poss_l:
-                        a = tm.get_tile(x, y).arena
-                        if a and a not in seen_set_l:
-                            seen_l.append(a)
-                            seen_set_l.add(a)
-                    living_sector_arenas = seen_l
+                tm = world.tile_manager
+                poss_l = tm.find_positions(sector=living_sector, include_collidable=True)
+                seen_l = []
+                seen_set_l = set()
+                for (x, y) in poss_l:
+                    a = tm.get_tile(x, y).arena
+                    if a and a not in seen_set_l:
+                        seen_l.append(a)
+                        seen_set_l.add(a)
+                living_sector_arenas = seen_l
             except Exception as e:
                 logger.debug("[Planner] Could not build arenas for living sector '%s': %s", living_sector, e)
 
@@ -576,10 +564,28 @@ class ModularPlanner(IPlanner):
             raw_arena,
             available_arenas,
         )
+        default_arena = None
+        try:
+            current_arena = world.tile_manager.get_tile(agent.position[0], agent.position[1]).arena
+        except Exception:
+            current_arena = None
+        try:
+            living_parts = (agent.living_area or "").split(":")
+            living_sector_default = living_parts[1] if len(living_parts) >= 2 else ""
+            living_arena_default = living_parts[2] if len(living_parts) >= 3 else ""
+        except Exception:
+            living_sector_default, living_arena_default = "", ""
+        if choosen_sector == living_sector_default and living_arena_default in available_arenas:
+            default_arena = living_arena_default
+        elif current_arena in available_arenas:
+            default_arena = current_arena
+        elif available_arenas:
+            default_arena = available_arenas[0]
+
         arena = self._pick_from_options(
             raw_arena,
             available_arenas,
-            "bed",
+            default_arena or (available_arenas[0] if available_arenas else "")
         )
 
         # Determine Action object
@@ -602,8 +608,7 @@ class ModularPlanner(IPlanner):
                 logger.debug("[Planner] Could not build objects via tile scan: %s", e)
                 return []
 
-        if not available_objects:
-            available_objects = tile_scan_objects()
+        available_objects = tile_scan_objects()
 
         # Compute a sensible default
         default_object = None
@@ -642,7 +647,6 @@ class ModularPlanner(IPlanner):
             logger.debug("[Planner] Object raw output='%s', options=%s", raw_object, available_objects)
             game_object = self._pick_from_options(raw_object, available_objects, default_object)
 
-        # Build address; drop object if none chosen to target the arena generally
         address = f"{world.name}:{choosen_sector}:{arena}" + (f":{game_object}" if game_object else "")
 
         duration = min(60, max(5, remaining_minutes))
@@ -943,8 +947,8 @@ class ModularPlanner(IPlanner):
             if addr2 not in dedup:
                 move_targets.append(addr2)
                 dedup.add(addr2)
-            arenas = agent.spatial_memory.get_accessible_arenas(world_name, s) or []
-            if not arenas and tm is not None:
+            arenas = []
+            if tm is not None:
                 try:
                     poss = tm.find_positions(sector=s, include_collidable=True)
                     seen_arenas: set[str] = set()
