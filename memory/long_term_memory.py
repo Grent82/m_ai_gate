@@ -210,12 +210,14 @@ class LongTermMemory:
         nodes_path = os.path.join(in_dir, "nodes.json")
         kw_path = os.path.join(in_dir, "kw_strength.json")
         if not os.path.exists(nodes_path):
+            logger.warning(f"No nodes.json found in {in_dir}, returning empty LTM") 
             return ltm
 
         try:
             with open(nodes_path, "r") as f:
                 nodes_data = json.load(f)
         except Exception:
+            logger.error(f"Failed to load nodes.json from {nodes_path}, returning empty LTM")
             return ltm
 
         # Load keyword strengths if present
@@ -226,6 +228,7 @@ class LongTermMemory:
                     ltm.keyword_strength_event = kw.get("kw_strength_event", {}) or {}
                     ltm.keyword_strength_thought = kw.get("kw_strength_thought", {}) or {}
         except Exception:
+            logger.error(f"Failed to load kw_strength.json from {kw_path}, continuing without keyword strengths")
             pass
 
         # Reconstruct nodes in ascending node_count and prepend to match newest-first ordering
@@ -234,6 +237,7 @@ class LongTermMemory:
             try:
                 return int(str(d.get("node_count", "0")))
             except Exception:
+                logger.error(f"Invalid node_count in node data: {d.get('node_count')}, defaulting to 0")
                 return 0
 
         items = sorted(nodes_data.items(), key=node_sort_key)
@@ -299,8 +303,10 @@ class LongTermMemory:
                         n = int(node_id.split("_", 1)[1])
                         max_numeric_id = max(max_numeric_id, n)
                 except Exception:
+                    logger.error(f"Invalid node_id format: {node_id}, cannot extract numeric suffix")
                     pass
             except Exception:
+                logger.error(f"Failed to reconstruct node {node_id} from data: {d}, skipping")
                 continue
 
         # Ensure future node ids continue after the max seen

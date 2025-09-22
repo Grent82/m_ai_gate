@@ -1,9 +1,11 @@
 import os
-from typing import Optional
 
 from core.agent import Agent
+from core.logger import setup_logger
 from .long_term_memory import LongTermMemory
 from .short_term_memory import ShortTermMemory
+
+logger = setup_logger(__name__, log_level="DEBUG")
 
 
 def _agent_dir(base_dir: str, agent_name: str) -> str:
@@ -16,7 +18,7 @@ def save_agent_state(agent: Agent, base_dir: str = "data") -> None:
     os.makedirs(d, exist_ok=True)
 
     # Long-term memory
-    ltm_dir = os.path.join(d, "ltm.json")
+    ltm_dir = os.path.join(d, "ltm")
     os.makedirs(ltm_dir, exist_ok=True)
     agent.long_term_memory.save(ltm_dir)
 
@@ -36,6 +38,7 @@ def load_agent_state(agent: Agent, base_dir: str = "data") -> None:
             loaded_ltm = LongTermMemory.load(ltm_dir)
             agent.long_term_memory = loaded_ltm
         except Exception:
+            logger.error(f"Failed to load LTM for agent {agent.name} from {ltm_dir}")
             pass
 
     # Load STM if present
@@ -43,5 +46,6 @@ def load_agent_state(agent: Agent, base_dir: str = "data") -> None:
         try:
             agent.short_term_memory = ShortTermMemory.load(stm_path)
         except Exception:
+            logger.error(f"Failed to load STM for agent {agent.name} from {stm_path}")
             pass
 
