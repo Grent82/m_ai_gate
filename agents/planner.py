@@ -503,9 +503,9 @@ class ModularPlanner(IPlanner):
         raw_sector = self.model.generate(
             sector_prompt,
             max_tokens=32,
-            stop=["User:", "###"],
-            temperature=0.05,
-            top_p=0.1,
+            stop=["\n","User:", "###"],
+            temperature=0.0,
+            top_p=0.9,
             allowed_strings=available_sectors,
         ).strip()
         logger.debug( "[Planner] Sector raw output='%s', options=%s, current='%s'", raw_sector, sector_prompt_context["available_sectors"], sector_prompt_context["current_sector"], )
@@ -583,8 +583,8 @@ class ModularPlanner(IPlanner):
         raw_arena = self.model.generate(
             arena_prompt,
             max_tokens=32,
-            stop=["User:", "###"],
-            temperature=0.25,
+            stop=["\n", "User:", "###"],
+            temperature=0.0,
             top_p=0.9,
             allowed_strings=available_arenas,
         ).strip()
@@ -669,7 +669,7 @@ class ModularPlanner(IPlanner):
                 object_prompt,
                 max_tokens=32,
                 stop=["User:", "###"],
-                temperature=0.25,
+                temperature=0.0,
                 top_p=0.9,
                 allowed_strings=available_objects,
             ).strip()
