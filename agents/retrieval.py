@@ -15,9 +15,9 @@ class Retrieval:
         self.short_term_memory = short_term_memory
 
     def retrieve_context(self, perceived_nodes: List[MemoryNode]) -> Dict[str, Dict[str, List[MemoryNode]]]:
-        logger.info("[Retrieval] Starting contextual retrieval...")
+        logger.info("[Retrieval] Starting contextual retrieval (keyword-first)...")
 
-        result = {}
+        result: Dict[str, Dict[str, List[MemoryNode]]] = {}
         try:
             context_limit = int(os.environ.get("CONTEXT_NODE_LIMIT", "30"))
         except Exception:
@@ -27,30 +27,18 @@ class Retrieval:
             description = node.event.description if node.event else "unknown"
             logger.debug(f"[Retrieval] Retrieving context for event: {description}")
 
-            ranked_map = self.retrieve_relevant_nodes([description])
-            ranked_nodes = ranked_map.get(description, [])
-            if ranked_nodes:
-                logger.debug(
-                    "[Retrieval] Ranked %d nodes for '%s' via vector scoring.",
-                    len(ranked_nodes),
-                    description,
-                )
-            else:
-                related_nodes = self.long_term_memory.retrieve_relevant_events(node.event)
-                related_thoughts = self.long_term_memory.retrieve_relevant_thoughts(node.event)
-                combined_nodes = list({n.node_id: n for n in related_nodes + related_thoughts}.values())
-                ranked_nodes = combined_nodes
-                logger.debug(
-                    "[Retrieval] Fallback combined nodes (events+thoughts): %d",
-                    len(ranked_nodes),
-                )
+            related_events = self.long_term_memory.retrieve_relevant_events(node.event)
+            related_thoughts = self.long_term_memory.retrieve_relevant_thoughts(node.event)
+            combined = list({n.node_id: n for n in (related_events + related_thoughts)}.values())
 
-            # Cap the number of context nodes to keep prompt size manageable
-            capped_nodes = ranked_nodes[: max(0, context_limit)]
-            if len(ranked_nodes) > len(capped_nodes):
+            # Most recent first
+            combined.sort(key=lambda n: n.created, reverse=True)
+
+            capped_nodes = combined[: max(0, context_limit)]
+            if len(combined) > len(capped_nodes):
                 logger.debug(
-                    "[Retrieval] Capped context nodes from %d to %d for '%s'",
-                    len(ranked_nodes),
+                    "[Retrieval] Capped keyword context nodes from %d to %d for '%s'",
+                    len(combined),
                     len(capped_nodes),
                     description,
                 )

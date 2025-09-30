@@ -36,12 +36,15 @@ class Reflection:
     # Public API
     # ------------------------------------------------------------------
     def reflect(self, agent: Agent) -> List[MemoryNode]:
-        """Run the full reflection pipeline if the trigger is met."""
-        if not self._should_reflect(agent):
-            logger.debug("[Reflection] Trigger conditions not met.")
+        """Run reflection when importance trigger is met."""
+        importance_ready = self._should_reflect(agent)
+        logger.debug(f"[Reflection] importance_ready={importance_ready}")
+        if not importance_ready:
+            logger.debug("[Reflection] Trigger conditions not met (importance).")
             return []
 
-        logger.info("[Reflection] Starting reflection...")
+        logger.info("[Reflection] Starting reflection (importance trigger)...")
+
         focal_points = self._generate_focal_points(agent)
         retrieved = self.retrieval.retrieve_relevant_nodes(focal_points)
 
@@ -117,6 +120,7 @@ class Reflection:
         logger.debug(f"[Reflection] Focal points: {focal_points}")
         return focal_points[:n]
 
+
     def _generate_insights_and_evidence(
         self, agent: Agent, nodes: List[MemoryNode], n: int = 5
     ) -> Dict[str, List[str]]:
@@ -184,3 +188,4 @@ class Reflection:
         stm = agent.short_term_memory
         stm.importance_trigger_current = self.importance_threshold
         stm.importance_element_count = 0
+        
