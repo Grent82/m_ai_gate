@@ -155,6 +155,63 @@ class AgentBuilder:
             living_area="MedievalVillage:The Drunken Boar Tavern:Private Room",
         ))
 
+        # Blacksmith and spouse
+        agents.append(create_agent(
+            first_name="Borin",
+            last_name="Ironhand",
+            sex="male",
+            age=43,
+            traits="meticulous, sturdy, dependable",
+            lifestyle="Starts the forge before dawn, hammers iron through noon, and cools tools at dusk.",
+            position=(20, 13),
+            memories=[
+                ("Runs the village smithery; repairs tools, makes nails, and fits horseshoes.", 9),
+                ("Trades ironwork for grain with Thomas and ale with Garrick.", 6),
+                ("Keeps a tidy ledger that his wife helps to maintain.", 5)
+            ],
+            whisper=(
+                "You take pride in well-tempered steel; "
+                "You prefer honest, practical folk; "
+                "You value Elara’s counsel on customers and coin; "
+                "You respect Thomas’s hard work and Ayla’s independence."
+            ),
+            background=(
+                "A village blacksmith renowned for durable tools and careful craftsmanship; runs the smithery with his wife Elara."
+            ),
+            status="focused, soot-smudged from the forge",
+            learned=(
+                "Borin Ironhand is skilled in forging nails, hinges, blades, farming tools, and horseshoes; adept at tempering and repair. "
+            ),
+            living_area="MedievalVillage:Blacksmith's Forge:Private Room",
+        ))
+
+        agents.append(create_agent(
+            first_name="Elara",
+            last_name="Ironhand",
+            sex="female",
+            age=39,
+            traits="practical, shrewd, warm",
+            lifestyle="Keeps accounts, tends the home, assists with light smithing, and handles customers politely but firmly.",
+            position=(19, 18),
+            memories=[
+                ("Manages the blacksmith’s household and records; assists with simple fittings.", 8),
+                ("Keeps cordial ties with the tavern and helps arrange trades.", 6)
+            ],
+            whisper=(
+                "You safeguard the home’s purse and reputation; "
+                "You enjoy calm conversation and fair bargains; "
+                "You gently nudge Borin to rest when he overworks."
+            ),
+            background=(
+                "Spouse of the blacksmith; balances the smithery’s needs with a welcoming home; admired for clear judgment."
+            ),
+            status="composed, faintly smelling of hearth-smoke",
+            learned=(
+                "Elara Ironhand is capable in bookkeeping, negotiation, household management, and basic metal fittings. "
+            ),
+            living_area="MedievalVillage:Blacksmith's Forge:Private Room",
+        ))
+
         return agents
 
     def _parse_event_triple(self, agent: Agent, description: str):

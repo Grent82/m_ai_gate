@@ -70,6 +70,11 @@ class WorldBuilder:
                 "workbench",
                 "crate",
                 "beer barrel",
+                # smithery equipment
+                "anvil",
+                "forge",
+                "tool rack",
+                "grindstone",
             }
             for (ox, oy, obj_name) in objects:
                 tiles.set_game_object(ox, oy, obj_name)
@@ -91,6 +96,41 @@ class WorldBuilder:
                 (3, 3, "chair")
             ],
             doors=[(3, 1)]  # north door
+        )
+
+        # House 3 – Blacksmith (Forge + Private Room)
+        # Smithery workspace
+        build_room(
+            18, 10, 25, 15,
+            sector="Blacksmith's Forge",
+            arena="Smithery",
+            objects=[
+                (20, 12, "anvil"),
+                (22, 12, "forge"),
+                (19, 13, "tool rack"),
+                (23, 13, "workbench"),
+                (24, 14, "water bucket"),
+                (21, 14, "grindstone"),
+            ],
+            # West-facing front doors to the road and an internal door to private room
+            doors=[(18, 11), (18, 12), (20, 15)]  # (20,15) connects to private room below
+        )
+
+        # Private room for the blacksmith and spouse (attached south of smithery)
+        # Enlarged to provide clear walking space
+        build_room(
+            17, 16, 24, 21,
+            sector="Blacksmith's Forge",
+            arena="Private Room",
+            objects=[
+                (18, 17, "bed"),
+                (23, 17, "wooden chest"),
+                (21, 19, "table"),
+                (22, 19, "chair"),
+                (18, 20, "fireplace"),
+                (19, 20, "bench"),
+            ],
+            doors=[(20, 16)]  # north door aligned to (20,15) in smithery
         )
 
         # House 2 – Hunter
@@ -163,8 +203,15 @@ class WorldBuilder:
                 tiles.set_sector(x, y, "Forest Edge")
                 tiles.set_arena(x, y, "Hunting Grounds")
                 tiles.set_terrain(x, y, TerrainType.FOREST)
-                is_dense = (x + y) % 2 == 0
+                # Keep some density but avoid isolating passable tiles (no checkerboard walls)
+                is_dense = (x % 3 == 0 and y % 2 == 0)
                 tiles.set_collision(x, y, is_dense)
+
+        # Ensure a walkable corridor from the village road into the forest
+        for y in range(1, 9):
+            for x in (17, 18):
+                if 16 <= x < 26:
+                    tiles.set_collision(x, y, False)
 
         def lay_gravel_path(points: List[Tuple[int, int]]):
             for (px, py) in points:
@@ -186,6 +233,10 @@ class WorldBuilder:
         for y in range(2, 20):
             gravel_points.add((15, y))
         lay_gravel_path(sorted(gravel_points))
+
+        # Connect main north-south road (x=15) to the blacksmith entrances at (18,11) and (18,12)
+        lay_gravel_path([(16, 11), (17, 11), (18, 11)])
+        lay_gravel_path([(16, 12), (17, 12), (18, 12)])
 
         tiles.set_game_object(1, 7, "water bucket")
         tiles.set_collision(1, 7, False)
