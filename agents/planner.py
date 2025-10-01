@@ -1017,18 +1017,21 @@ class ModularPlanner(IPlanner):
         
         response = self.model.generate(
             prompt,
-            max_tokens=200,
-            stop=[":"],
+            max_tokens=8,
+            stop=[],
             temperature=0,
             top_p=1,
         )
 
-        option = ""
-        try:
-            option_part = response.split("Option ")[-1].strip().lower()
-            option = option_part[0]
-        except Exception:
+        resp = (response or "").strip().lower()
+        m = re.search(r"option\s*([12])", resp)
+        if not m:
+            m = re.search(r"\b([12])\b", resp)
+        if m:
+            option = m.group(1)
+        else:
             option = "2"
+            logger.warning("[Planner] Could not parse reaction option; defaulting to 2. Response: %s", response)
         
         logger.debug(f"[Planner] Raw reaction response: {response}")
         
@@ -1074,6 +1077,9 @@ class ModularPlanner(IPlanner):
                     return
                 if "waiting" in (target_agent.short_term_memory.action.description or "").lower():
                     logger.debug("[Planner] Skipping chat: target waiting.")
+                    return
+                if target_agent.name == agent.name:
+                    logger.debug("[Planner] Skipping chat: resolved target is self.")
                     return
                 init_buf = agent.short_term_memory.action.chat.buffer or {}
                 targ_buf = target_agent.short_term_memory.action.chat.buffer or {}

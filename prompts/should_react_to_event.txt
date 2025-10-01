@@ -20,10 +20,11 @@ You decide how an NPC in a tiny medieval forest hamlet reacts to an observed eve
 {% endif %}
 
 ### Rules
-- Reason step by step internally, then provide the reasoning and answer in the specified format.
-- Answer in a exact number which reflects the Option (e.g. Option 1 return "1")
-- Output in this exact format after reasoning (Option x): [x]
-- If already in conversation or clearly sleeping, choose Option 2.
+- Reason step by step internally, but output only the final choice.
+- Answer with a single digit only: 1 or 2. No other text or numbers.
+- Do not prefix with "Option" and do not use brackets, quotes, or punctuation.
+- Default to 2 (continue/ignore) unless ALL are true: not in conversation, not sleeping, the event is nearby/relevant, and a short talk would be clearly beneficial.
+- If already in conversation or clearly sleeping, output 2.
 
 ### Decision
 Context: {{ context }}
@@ -31,8 +32,8 @@ Right now, it is {{ current_time }}!.
 {{ init_p_desc }}! 
 {{ target_p_desc }}! 
 
-My question: Let's think step by step. Of the following three options, what should {{ agent.name }} do?
-Option 1: Wait on {{ current_action }} until {{ event.subject }} is done {{ target_act_desc }}!
-Option 2: Continue on to {{ current_action }} now
+My question: Of the following options, what should {{ agent.name }} do? Respond with 1 or 2 only.
+Option 1: Start a brief conversation with {{ event.subject }} about the event now
+Option 2: Ignore the event and continue {{ current_action }}
 
 ### Assistant
