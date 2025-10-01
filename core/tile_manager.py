@@ -94,8 +94,13 @@ class TileManager:
             logger.error("Invalid level: %s", level)
             raise ValueError("Invalid level.")
         index = levels.index(level) + 1
-        if any(p is None for p in path[:index]):
-            logger.error( "Path level %s is missing for position (%d, %d).", level, x, y )
+        missing_idx = next((i for i, p in enumerate(path[:index]) if p is None), None)
+        if missing_idx is not None:
+            missing_level = levels[missing_idx]
+            if missing_level == "game_object":
+                logger.debug( "Path level %s is missing for position (%d, %d); returning empty path.", level, x, y, )
+                return ""
+            logger.error("Path level %s is missing for position (%d, %d).", level, x, y)
             raise ValueError("Path level is missing.")
         return ":".join(filter(None, path[:index]))
 

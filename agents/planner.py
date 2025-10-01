@@ -643,7 +643,8 @@ class ModularPlanner(IPlanner):
         default_object = None
         if choosen_sector == current_sector and arena == current_arena:
             try:
-                current_object = world.tile_manager.get_tile_path(agent.position, "game_object").split(":")[-1]
+                current_object_path = world.tile_manager.get_tile_path(agent.position, "game_object")
+                current_object = current_object_path.split(":")[-1] if current_object_path else ""
                 if current_object in available_objects:
                     default_object = current_object
             except Exception:
@@ -911,7 +912,8 @@ class ModularPlanner(IPlanner):
         except Exception:
             current_arena = ""
         try:
-            current_object = world.tile_manager.get_tile_path(agent.position, "game_object").split(":")[-1]
+            current_object_path = world.tile_manager.get_tile_path(agent.position, "game_object")
+            current_object = current_object_path.split(":")[-1] if current_object_path else ""
         except Exception:
             current_object = ""
         addr_parts: List[str] = [world.name]
@@ -944,7 +946,8 @@ class ModularPlanner(IPlanner):
                     target_loc = parts[-1] + " in " + parts[-2] if len(parts) >= 2 else ""
                 target_current_sector = world.tile_manager.get_current_sector(target_agent.position)
                 target_current_arena = world.tile_manager.get_tile_path(target_agent.position, "arena").split(":")[-1]
-                target_current_object = world.tile_manager.get_tile_path(target_agent.position, "game_object").split(":")[-1]
+                target_object_path = world.tile_manager.get_tile_path(target_agent.position, "game_object")
+                target_current_object = target_object_path.split(":")[-1] if target_object_path else ""
                 target_current_address = f"{world.name}:{target_current_sector}:{target_current_arena}" + (f":{target_current_object}" if target_current_object else "")
                 target_is_at = target_current_address == target_address
                 target_p_desc = f"{target_name} is already {target_act_desc} at {target_loc}" if target_is_at else f"{target_name} is on the way to {target_act_desc} at {target_loc}"
