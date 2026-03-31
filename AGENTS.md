@@ -1,429 +1,259 @@
 # AGENTS.md
 
-## Purpose
+## Scope
 
-This repository contains an experimental Python-based simulation of autonomous in-world agents.
-The folder `agents/` already contains domain agents and pipelines for the simulation itself.
-This `AGENTS.md` defines a separate multi-agent setup for Codex-driven development work on the repository.
+This repository contains a local-LLM generative-agent simulation written in Python.
+The directory `agents/` belongs to the application and contains simulation logic.
+This file is for Codex-style development agents working on the codebase.
 
-Use these development agents to analyze, extend, test, and stabilize the project without confusing them with the in-game agent logic.
+Do not confuse development agents with the in-world simulation agents.
 
-The project direction is explicitly inspired by the paper *Generative Agents: Interactive Simulacra of Human Behavior* and the reference repository `joonspk-research/generative_agents`, but this repository should prioritize software quality, architecture, maintainability, testability, and extensibility over cloning the original implementation details.
+## Project Intent
 
-## Project Analysis
+The project is inspired by *Generative Agents: Interactive Simulacra of Human Behavior* and the reference repository `joonspk-research/generative_agents`.
+This repository is a clean reimplementation effort, not a direct clone.
 
-### Current shape of the codebase
+Primary goals:
 
-- Entry point: `main.py`
-- Simulation core: `core/`
-- In-world agent cognition modules: `agents/`
-- Memory systems: `memory/`
-- Local model integration: `models/`
-- Interfaces and contracts: `interfaces/`
-- Prompt templates: `prompts/`
+- clean architecture
+- maintainability
+- testability
+- extensibility
+- predictable local development
 
-### What matters technically
+## Current Code Reality
 
-- The codebase is early-stage and research-like, not yet production-hardened.
-- The target product direction is a cleaner, more maintainable implementation of a generative-agent architecture inspired by the original paper and reference repo.
-- There is a strong prompt-driven architecture across planning, perception, reflection, and event extraction.
-- The local LLM dependency is `llama-cpp-python`, configured via `MODEL_PATH`.
-- There are already visible GitHub Actions quality gates under `.github/workflows/`:
-  - `python-app.yml` runs `flake8` and `pytest`
-  - `python-package.yml` runs `flake8` and `pytest`
-- There is still no visible dedicated type-check configuration in the repository root.
-- Test scaffolding is not yet visible as a conventional `tests/` directory, so runtime validation coverage should still be reviewed carefully.
-- There are signs of encoding issues in several strings (`â€“`, `â€™`, `â€”`), so text quality and prompt hygiene need active maintenance.
+Main areas:
 
-### Main development needs
+- `main.py`
+  - bootstraps the simulation loop
+  - loads env vars
+  - advances time
+  - loads and saves agent state
+- `agents/`
+  - cognition and behavior modules
+  - planning, perception, retrieval, reflection
+  - execution, chat, identity revision, event generation
+- `core/`
+  - world, tiles, actions, builders, logger
+- `memory/`
+  - short-term memory
+  - long-term memory
+  - spatial memory
+  - persistence
+- `models/`
+  - local llama.cpp wrapper
+  - embeddings
+  - embedding cache
+- `prompts/`
+  - Jinja2 templates used by agent modules
+- `.github/workflows/`
+  - existing CI runs `flake8` and `pytest`
+- `best_practices.md`
+  - repo-local engineering guidance
 
-- Preserve the architectural intent of generative agents while avoiding a monolithic or tightly coupled implementation.
-- Stabilize the runtime path for local model execution.
-- Add tests around memory, world building, planner logic, and prompt parsing.
-- Improve developer experience: run instructions, env validation, quality checks.
-- Reduce regressions in prompt outputs and parser expectations.
-- Keep architecture coherent while the simulation expands.
+Important constraints:
 
-### Project positioning
+- `README.md` is still stale and generic.
+- There is no visible `tests/` directory yet.
+- Prompt contracts and parser assumptions are spread across several modules.
+- Persistence and cache behavior can fail quietly if not checked.
+- Some files still show encoding issues.
 
-- This repo is not a copy of the original `generative_agents` codebase.
-- It is a reimplementation effort guided by the same broad architecture:
-  - observation
-  - memory
-  - retrieval
-  - reflection
-  - planning
-- Development choices should favor clean code and clear boundaries even when that differs from the structure of the reference implementation.
+## Coding Helper Agent
 
-## Operating Model
+The default development agent for this repo is a coding helper.
+It should behave like a pragmatic senior engineer working inside an evolving research codebase.
 
-Use one coordinator plus focused specialist agents.
-The coordinator owns task decomposition, sequencing, acceptance criteria, and final integration.
-Specialists own bounded areas of the repository and should avoid overlapping edits where possible.
+### Core behavior
 
-Default rule:
+- read the code before proposing structure changes
+- prefer small coherent edits over broad speculative rewrites
+- keep deterministic logic separate from model-driven logic
+- preserve working behavior unless the task explicitly changes it
+- update docs when architecture or workflow assumptions change
+- treat prompts as code, not as loose text assets
 
-- One agent plans.
-- One agent owns architecture and refactors.
-- One agent owns prompt quality and parser alignment.
-- One agent owns tests and validation.
-- One agent owns docs and onboarding.
+### Writing style
 
-Spawn fewer agents for small tasks.
-Spawn more only when ownership is clear and write scopes do not collide.
+The agent should write in a direct engineering style.
 
-## Development Agent Roster
+Use:
 
-### 1. `repo-orchestrator`
+- short factual sentences
+- explicit assumptions
+- concrete file ownership
+- practical tradeoffs
+- concise summaries
 
-Role:
-Primary coordinator for all development work in this repository.
+Avoid:
 
-Responsibilities:
+- vague architecture language
+- inflated product language
+- long motivational explanations
+- generic AI-assistant phrasing
+- documenting intentions that do not match the current code
 
-- Read the task and map it onto the codebase.
-- Decide which specialist agents are needed.
-- Keep work split by directory or subsystem.
-- Define acceptance criteria before parallel work starts.
-- Review integration risks before merging edits.
+### Code review style
+
+When asked to review:
+
+- prioritize bugs, regressions, missing validation, and architectural risks
+- cite exact files and functions
+- keep summaries short
+- call out stale documentation if it affects development decisions
+
+## Agent Roles
+
+Use a small role set with clear ownership.
+
+### `repo-orchestrator`
 
 Owns:
 
-- Cross-cutting changes
-- Final integration decisions
-- Task sequencing
-- Change summaries
+- task decomposition
+- integration
+- cross-module risk review
+- keeping `AGENTS.md`, `.agents/roles/`, and `best_practices.md` aligned
 
-When to use:
+Use when:
 
-- Any non-trivial task
-- Refactors crossing `core/`, `agents/`, `memory/`, or `models/`
-- Work that mixes code, prompts, and docs
+- a task spans multiple subsystems
+- code, prompts, and docs all change together
 
-### 2. `simulation-architect`
-
-Role:
-Maintains structural coherence of the simulation and domain model.
-
-Responsibilities:
-
-- Refactor `core/`, `interfaces/`, and shared contracts.
-- Keep `Agent`, `World`, tile, and action abstractions clean.
-- Remove accidental coupling between runtime systems.
-- Improve naming, boundaries, and data flow.
+### `simulation-architect`
 
 Owns:
 
 - `core/`
 - `interfaces/`
-- Shared entity contracts
+- orchestration concerns in `main.py`
 
-When to use:
+Focus:
 
-- Architecture cleanup
-- State model changes
-- Runtime orchestration fixes
+- world/time/action boundaries
+- bootstrap-loop complexity
+- moving responsibilities out of `main.py` when needed
 
-### 3. `cognition-engineer`
-
-Role:
-Owns the cognitive pipeline of the in-world agents.
-
-Responsibilities:
-
-- Improve planning, perception, retrieval, reflection, and event generation.
-- Keep prompt outputs aligned with parser expectations.
-- Reduce brittle LLM assumptions.
-- Add fallback behavior when model outputs are malformed.
+### `cognition-engineer`
 
 Owns:
 
 - `agents/`
-- Relevant pieces of `memory/`
-- Prompt-to-parser glue
+- prompt consumers in cognition code
 
-When to use:
+Focus:
 
-- Planning bugs
-- Reflection and retrieval issues
-- Event-triple extraction problems
+- planning
+- perception
+- retrieval
+- reflection
+- chat and relationship flow
+- identity revision
 
-### 4. `prompt-operator`
-
-Role:
-Owns prompt assets as first-class system components.
-
-Responsibilities:
-
-- Rewrite templates for determinism and parseability.
-- Standardize output formats across prompts.
-- Add prompt fixtures or snapshot-style checks where practical.
-- Detect encoding and formatting issues in prompt files.
+### `prompt-operator`
 
 Owns:
 
 - `prompts/`
-- Prompt conventions in parser code
+- output-shape discipline between prompts and parser code
 
-When to use:
+Focus:
 
-- LLM output drift
-- Parsing failures
-- Quality tuning for behavior prompts
+- deterministic output formats
+- ambiguity reduction
+- encoding cleanup
 
-### 5. `memory-systems-engineer`
-
-Role:
-Maintains short-term, long-term, and spatial memory behavior.
-
-Responsibilities:
-
-- Improve retrieval relevance and storage semantics.
-- Protect invariants in memory node creation and access.
-- Add tests for significance, retention, and recall behavior.
-- Ensure memory APIs remain consistent across cognition modules.
+### `memory-and-persistence-engineer`
 
 Owns:
 
 - `memory/`
-- Retrieval interfaces touching memory
+- `models/embedding_cache.py`
+- memory-related integration points
 
-When to use:
+Focus:
 
-- Memory bugs
-- Retrieval quality issues
-- Schema or persistence-style changes
+- STM/LTM invariants
+- save/load stability
+- cache correctness
+- retrieval compatibility with stored node structure
 
-### 6. `model-runtime-engineer`
-
-Role:
-Owns local model integration and execution ergonomics.
-
-Responsibilities:
-
-- Harden `LocalModel` setup and failure modes.
-- Improve configuration of `MODEL_PATH`, threads, and context size.
-- Make local execution easier to diagnose.
-- Prepare the code for alternative backends if needed later.
+### `model-runtime-engineer`
 
 Owns:
 
-- `models/`
-- Runtime bootstrap concerns in `main.py`
+- `models/local_model.py`
+- env-driven runtime config in `main.py`
 
-When to use:
+Focus:
 
-- LLM startup failures
-- Backend abstraction work
-- Environment validation and runtime logging
+- `MODEL_PATH`
+- llama.cpp settings
+- constrained generation
+- startup diagnostics
 
-### 7. `qa-and-tests`
-
-Role:
-Owns validation, regression checks, and reproducibility.
-
-Responsibilities:
-
-- Add unit tests and lightweight integration tests.
-- Build fixtures for prompts, memories, and world setup.
-- Create smoke tests that do not require a full local model when possible.
-- Add validation for parser edge cases and encoding issues.
+### `qa-and-tests`
 
 Owns:
 
-- `tests/`
-- Test scaffolding
-- Quality commands and CI hooks
+- future `tests/`
+- validation commands
+- CI-aligned checks
 
-When to use:
+Focus:
 
-- Any bug fix
-- Any parser change
-- Any architectural change
+- deterministic tests
+- parser regression coverage
+- executor, planner, world, and persistence coverage
 
-### 8. `devex-docs`
-
-Role:
-Owns onboarding, usage docs, and contributor workflow.
-
-Responsibilities:
-
-- Keep `README.md` accurate.
-- Document environment setup and local model requirements.
-- Add contributor guidance and task recipes.
-- Document agent workflow and development conventions.
+### `devex-docs`
 
 Owns:
 
 - `README.md`
-- Developer docs
-- Supporting repo documentation
+- `best_practices.md`
+- contributor-facing docs
 
-When to use:
+Focus:
 
-- Setup friction
-- Documentation drift
-- New workflow introduction
+- accurate setup instructions
+- env var documentation
+- persistence and workflow documentation
 
-## Recommended Skills
+## Working Rules
 
-These are the useful Codex skill categories for this repository.
-If local skills exist in your environment, map them to these responsibilities.
+- Do not put development-agent files inside the application `agents/` directory.
+- Prefer changes by subsystem or by one vertical slice.
+- Prompt changes must be reviewed together with the consuming code.
+- Persistence changes must be reviewed together with compatibility concerns.
+- Keep local validation aligned with existing GitHub Actions workflows.
+- If docs become stale because of code changes, update them in the same task when practical.
 
-### Core skills to have
+## Validation Standard
 
-- `python-architecture`
-  - Refactoring, module boundaries, dependency cleanup, interfaces
-- `python-testing`
-  - `pytest`, fixtures, mocks, parser regression tests
-- `prompt-engineering`
-  - Deterministic prompt design, output schemas, evaluation loops
-- `llm-runtime`
-  - Local model integration, config handling, fallback behavior
-- `documentation`
-  - README cleanup, contributor docs, architecture notes
+For non-trivial work:
 
-### Nice-to-have skills
+1. Inspect affected files first.
+2. State assumptions.
+3. Make the change.
+4. Run relevant validation if possible.
+5. Report what was verified and what was not.
 
-- `typing-and-static-analysis`
-- `logging-and-observability`
-- `performance-profiling`
-- `text-encoding-repair`
+## Near-Term Priorities
 
-## Recommended MCP / Tooling
+1. Replace the stale `README.md` with a project-accurate version.
+2. Add a real `tests/` directory.
+3. Add local validation commands matching CI.
+4. Normalize encoding issues in prompts and docs.
+5. Keep reducing coordination complexity in `main.py`.
+6. Document persistence and embedding-cache behavior clearly.
 
-### High-value MCPs
+## Definition Of Done
 
-- `filesystem`
-  - Read and edit repo files safely
-- `git`
-  - Inspect diffs, status, history, and branch state
-- `github`
-  - Useful if the repo is mirrored remotely and PR-based review is used
-- `python`
-  - Run tests, smoke checks, fixtures, and scripts
+A task is done when:
 
-### Optional MCPs
-
-- `docs` or `knowledge-base`
-  - Useful for internal architecture notes or design references
-- `issue-tracker`
-  - Useful once work is tracked outside the repo
-
-### Not required yet
-
-- Browser automation
-- Deployment MCPs
-- Database MCPs
-
-This repository is still local-development-centric, so keep the toolchain small.
-
-## Plugins
-
-No custom Codex plugin is strictly required yet.
-Add plugins only when they remove repeated friction.
-
-### Plugins that would actually help
-
-- `pytest runner`
-  - Single-command test execution and summary
-- `quality gate`
-  - Run lint, tests, and basic type checks together
-- `prompt snapshot checker`
-  - Compare prompt outputs or parser expectations against fixtures
-- `env doctor`
-  - Validate `MODEL_PATH`, Python version, and optional runtime dependencies
-
-### Plugins that are premature right now
-
-- Deployment plugins
-- Release automation plugins
-- Complex multi-repo orchestration plugins
-
-## Suggested Task Routing
-
-### For bug fixes
-
-- `repo-orchestrator`
-- `qa-and-tests`
-- Relevant domain specialist
-
-### For prompt failures
-
-- `prompt-operator`
-- `cognition-engineer`
-- `qa-and-tests`
-
-### For architecture work
-
-- `simulation-architect`
-- `memory-systems-engineer`
-- `qa-and-tests`
-
-### For setup and onboarding
-
-- `devex-docs`
-- `model-runtime-engineer`
-
-## Coordination Rules
-
-- Never confuse development agents with the simulation modules in `agents/`.
-- Prefer disjoint ownership by directory.
-- Do not let multiple agents edit the same prompt file or parser path without explicit coordination.
-- Every behavioral change should include at least one validation step.
-- Changes to prompt format must be mirrored by parser or test updates.
-- Keep `README.md` aligned with the actual entry point and workflow.
-- Prefer smoke tests that do not require a heavy local model for every run.
-
-## Minimal Workflow Standard
-
-For non-trivial work, the coordinator should do this:
-
-1. Inspect impacted files.
-2. State assumptions and acceptance criteria.
-3. Delegate by subsystem.
-4. Integrate changes.
-5. Run validation.
-6. Update docs if developer workflow changed.
-
-## Immediate Next Improvements For This Repo
-
-These should be the first tasks for the new development agent system:
-
-1. Add a `tests/` directory with smoke tests for world building, planner parsing, and memory primitives.
-2. Add a lightweight quality command set, ideally `pytest` first.
-3. Introduce environment validation for `MODEL_PATH`.
-4. Normalize prompt text encoding and parser assumptions.
-5. Continue separating domain logic from infrastructure and runtime concerns.
-
-## Directory Convention For Future Agent Assets
-
-If you later want repo-local prompt files or agent-specific working notes for Codex, use this layout:
-
-```text
-.agents/
-  roles/
-    repo-orchestrator.md
-    simulation-architect.md
-    cognition-engineer.md
-    prompt-operator.md
-    memory-systems-engineer.md
-    model-runtime-engineer.md
-    qa-and-tests.md
-    devex-docs.md
-  workflows/
-    bugfix.md
-    prompt-change.md
-    refactor.md
-```
-
-Do not place these files in the existing `agents/` directory because that directory already belongs to the application domain.
-
-## Definition of Done
-
-A task is only complete when:
-
-- the responsible subsystem was changed coherently,
-- validation was run or explicitly documented as blocked,
-- docs were updated if workflow or setup changed,
-- and integration risk across prompts, parsers, and memory flow was checked.
+- the target subsystem was changed coherently
+- validation was run or explicitly reported as blocked
+- docs were updated if workflow or architecture changed
+- prompt, memory, execution, and persistence risks were checked where relevant

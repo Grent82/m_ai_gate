@@ -6,9 +6,10 @@ Focus:
 - `tests/`
 - smoke checks
 - parser and prompt regression coverage
+- CI-aligned local validation
 
 Goals:
 - add fast unit tests first
 - avoid heavy-model requirements where possible
-- verify every behavioral change
-
+- verify executor, planner parsing, memory persistence, and world setup
+- keep local validation aligned with existing GitHub Actions workflows
